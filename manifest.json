@@ -2,7 +2,7 @@
   "name": "Luma — Suivi de traitements",
   "short_name": "Luma",
   "description": "Suivi de médicaments et de traitements PMA",
-  "start_url": "/",
+  "start_url": "https://christolosier-ship-it.github.io/Luma-V2/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f5f0eb",
