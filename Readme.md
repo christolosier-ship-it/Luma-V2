@@ -18,7 +18,7 @@
 
 
 > Une application mobile douce et simple pour suivre ses traitements au quotidien.  
-> Conçue pour les contextes médicaux qui changent souvent — notamment en PMA.
+> Conçue pour les contextes médicaux qui changent souvent.
 
 <br/>
 
