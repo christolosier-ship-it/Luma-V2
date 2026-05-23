@@ -2,11 +2,11 @@ const SettingsScreen = {
   render() {
     const screen = document.getElementById('screen-settings');
     screen.innerHTML = `<div class="section-title">Réglages</div><div class="settings-section card">
-      <div class="settings-row"><div><div class="settings-row-label">Exporter JSON V3.1</div></div><button class="btn-settings" id="btn-export">Exporter</button></div>
-      <div class="settings-row"><div><div class="settings-row-label">Importer JSON (V2/V2.1/V3/V3.1)</div></div><button class="btn-settings" id="btn-import">Importer</button></div>
+      <div class="settings-row"><div><div class="settings-row-label">Exporter JSON V3.3</div></div><button class="btn-settings" id="btn-export">Exporter</button></div>
+      <div class="settings-row"><div><div class="settings-row-label">Importer JSON (V2/V2.1/V3/V3.3)</div></div><button class="btn-settings" id="btn-import">Importer</button></div>
       <input type="file" id="import-file-input" accept=".json" class="hidden" /></div>`;
     screen.querySelector('#btn-export').addEventListener('click', async () => {
-      try { const data = await DB.exportAll(); SettingsScreen._downloadJson(data, `luma-v3.1-backup-${todayStr()}.json`); showToast('✓ Export JSON réalisé'); }
+      try { const data = await DB.exportAll(); SettingsScreen._downloadJson(data, `luma-v3.3-backup-${todayStr()}.json`); showToast('✓ Export JSON réalisé'); }
       catch (err) { console.error(err); showToast('Erreur export JSON'); }
     });
     const importInput = screen.querySelector('#import-file-input');

@@ -1,5 +1,5 @@
 const DB_NAME = 'luma_db';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 const STORES = {
   PROTOCOLS: 'protocols',
@@ -77,7 +77,11 @@ async function ensureDefaultProtocolAndLinks() {
   let defaultProtocol = protocols.find((p) => p.isDefault) || protocols[0] || null;
   const medsNeed = meds.some((m) => !m.protocolId);
   const phasesNeed = phases.some((p) => !p.protocolId);
-  if ((!defaultProtocol && (meds.length || phases.length)) || medsNeed || phasesNeed) {
+  if (!defaultProtocol) {
+    defaultProtocol = { id: uid(), name: DEFAULT_PROTOCOL_NAME, type: 'free', startDate: todayStr(), status: 'active', notes: '', isDefault: true, createdAt: nowIso, updatedAt: nowIso };
+    await putItem(STORES.PROTOCOLS, defaultProtocol);
+  }
+  if (medsNeed || phasesNeed) {
     if (!defaultProtocol) {
       const startDate = phases.map((p) => p.startDate).filter(Boolean).sort()[0] || todayStr();
       defaultProtocol = { id: uid(), name: DEFAULT_PROTOCOL_NAME, type: 'free', startDate, status: 'active', notes: '', isDefault: true, createdAt: nowIso, updatedAt: nowIso };
@@ -116,7 +120,7 @@ const DB = {
     const [protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents] = await Promise.all([
       getAll(STORES.PROTOCOLS),getAll(STORES.MEDICATIONS),getAll(STORES.PHASES),getAll(STORES.INTAKE_ACTIONS),getAll(STORES.INTAKE_EVENTS),getAll(STORES.DAILY_NOTES),getAll(STORES.PROTOCOL_EVENTS)
     ]);
-    return { app:'Luma', version:'3.2', exportedAt:new Date().toISOString(), protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents, settings:{} };
+    return { app:'Luma', version:'3.3', exportedAt:new Date().toISOString(), protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents, settings:{} };
   },
   validateImportData(data){
     if (!data || typeof data !== 'object') return {ok:false,error:'Fichier JSON invalide'};
@@ -133,7 +137,11 @@ const DB = {
       if (!Array.isArray(p.times) || p.times.some(t=>!isValidTimeHHMM(t))) return {ok:false,error:'Heures de phase invalides'};
     }
     for (const pr of protocols){ if(!VALID_PROTOCOL_STATUS.has(pr.status||'active')) return {ok:false,error:'Statut protocole invalide'}; if(pr.startDate && !DATE_RE.test(pr.startDate)) return {ok:false,error:'Date protocole invalide'}; }
-    for (const a of actions){ if(!VALID_ACTION_STATUS.has(a.status)) return {ok:false,error:'Statut action invalide'}; }
+    for (const a of actions){ if(!VALID_ACTION_STATUS.has(a.status)) return {ok:false,error:'Statut action invalide'}; if(a.date && !DATE_RE.test(a.date)) return {ok:false,error:'Date action invalide'}; if(a.time && !isValidTimeHHMM(a.time)) return {ok:false,error:'Heure action invalide'}; }
+    for (const m of meds) { if (!m.protocolId || !protocolIds.has(m.protocolId)) return {ok:false,error:'medication.protocolId invalide'}; }
+    for (const p of phases) { if (!p.protocolId || !protocolIds.has(p.protocolId)) return {ok:false,error:'phase.protocolId invalide'}; }
+    for (const n of (data.dailyNotes||[])) { if(!n.date||!DATE_RE.test(n.date)) return {ok:false,error:'dailyNotes.date invalide'}; const s=n.symptoms||{}; for(const k of ['nausea','fatigue','pain','headache','dizziness','mood','sleep','bleeding','other']){const v=Number(s[k]??0); if(v<0||v>3) return {ok:false,error:'Symptôme hors plage 0-3'};} }
+    for (const e of (data.intakeEvents||[])) { if(!e.type || !new Set(['taken','skipped','snoozed','undo','missed','edited','noteAdded']).has(e.type)) return {ok:false,error:'Type intakeEvent invalide'}; }
     if (version.startsWith('3')) {
       for (const ev of (data.protocolEvents || [])) if (!ev.protocolId || !protocolIds.has(ev.protocolId)) return {ok:false,error:'Événement protocole invalide'};
     }
