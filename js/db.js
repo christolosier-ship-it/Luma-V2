@@ -1,5 +1,5 @@
 const DB_NAME = 'luma_db';
-const DB_VERSION = 3;
+const DB_VERSION = 5;
 
 const STORES = {
   PROTOCOLS: 'protocols',
@@ -13,6 +13,11 @@ const STORES = {
 
 let _db = null;
 const DEFAULT_PROTOCOL_NAME = 'Traitement principal';
+
+const VALID_PROTOCOL_STATUS = new Set(['active','paused','completed','archived']);
+const VALID_ACTION_STATUS = new Set(['taken','skipped','snoozed']);
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -87,6 +92,7 @@ const DB = {
   async init() { await openDB(); await ensureDefaultProtocolAndLinks(); },
   async getProtocols() { return getAll(STORES.PROTOCOLS); },
   async saveProtocol(p) { return putItem(STORES.PROTOCOLS, p); },
+  async deleteProtocol(id){ return deleteItem(STORES.PROTOCOLS,id); },
   async getMedications() { return getAll(STORES.MEDICATIONS); },
   async saveMedication(med) { return putItem(STORES.MEDICATIONS, med); },
   async deleteMedication(id) { return deleteItem(STORES.MEDICATIONS, id); },
@@ -94,6 +100,7 @@ const DB = {
   async savePhase(phase) { return putItem(STORES.PHASES, phase); },
   async deletePhasesByMedication(medId) { for (const p of await getAll(STORES.PHASES)) if (p.medicationId === medId) await deleteItem(STORES.PHASES,p.id); },
   async getAllIntakeActions() { return getAll(STORES.INTAKE_ACTIONS); },
+  async getIntakeAction(key){return new Promise((resolve,reject)=>{const r=tx(STORES.INTAKE_ACTIONS).get(key);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error);});},
   async saveIntakeAction(a){ return putItem(STORES.INTAKE_ACTIONS,a); },
   async deleteIntakeAction(key){ return deleteItem(STORES.INTAKE_ACTIONS,key); },
   async saveIntakeEvent(e){ return putItem(STORES.INTAKE_EVENTS,e); },
@@ -102,12 +109,14 @@ const DB = {
   async saveDailyNote(n){ return putItem(STORES.DAILY_NOTES,n); },
   async getProtocolEvents(){ return getAll(STORES.PROTOCOL_EVENTS); },
   async saveProtocolEvent(ev){ return putItem(STORES.PROTOCOL_EVENTS,ev); },
+  async deleteProtocolEvent(id){ return deleteItem(STORES.PROTOCOL_EVENTS,id); },
+  async toggleProtocolEventCompleted(id){ const all=await getAll(STORES.PROTOCOL_EVENTS); const ev=all.find(e=>e.id===id); if(!ev) return; ev.completed=!ev.completed; ev.updatedAt=new Date().toISOString(); await putItem(STORES.PROTOCOL_EVENTS,ev); },
 
   async exportAll() {
     const [protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents] = await Promise.all([
       getAll(STORES.PROTOCOLS),getAll(STORES.MEDICATIONS),getAll(STORES.PHASES),getAll(STORES.INTAKE_ACTIONS),getAll(STORES.INTAKE_EVENTS),getAll(STORES.DAILY_NOTES),getAll(STORES.PROTOCOL_EVENTS)
     ]);
-    return { app:'Luma', version:'3.0', exportedAt:new Date().toISOString(), protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents, settings:{} };
+    return { app:'Luma', version:'3.1', exportedAt:new Date().toISOString(), protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents, settings:{} };
   },
   validateImportData(data){
     if (!data || typeof data !== 'object') return {ok:false,error:'Fichier JSON invalide'};
@@ -117,12 +126,14 @@ const DB = {
     const protocols = Array.isArray(data.protocols) ? data.protocols : [];
     const protocolIds = new Set(protocols.map(p=>p.id));
     const medIds = new Set(meds.map(m=>m.id));
-    for (const m of meds) if (!m.id || !m.name) return {ok:false,error:'Médicament incomplet'};
+    for (const m of meds) { if (!m.id || !m.name) return {ok:false,error:'Médicament incomplet'}; if (m.protocolId && !protocolIds.has(m.protocolId) && protocols.length) return {ok:false,error:'Médicament lié à un protocole inexistant'}; }
     for (const p of phases) {
       if (!p.id || !p.medicationId || !p.startDate) return {ok:false,error:'Phase incomplète'};
       if (!medIds.has(p.medicationId)) return {ok:false,error:'Phase liée à un médicament inexistant'};
       if (!Array.isArray(p.times) || p.times.some(t=>!isValidTimeHHMM(t))) return {ok:false,error:'Heures de phase invalides'};
     }
+    for (const pr of protocols){ if(!VALID_PROTOCOL_STATUS.has(pr.status||'active')) return {ok:false,error:'Statut protocole invalide'}; if(pr.startDate && !DATE_RE.test(pr.startDate)) return {ok:false,error:'Date protocole invalide'}; }
+    for (const a of actions){ if(!VALID_ACTION_STATUS.has(a.status)) return {ok:false,error:'Statut action invalide'}; }
     if (version.startsWith('3')) {
       for (const ev of (data.protocolEvents || [])) if (!ev.protocolId || !protocolIds.has(ev.protocolId)) return {ok:false,error:'Événement protocole invalide'};
     }

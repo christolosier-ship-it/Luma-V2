@@ -6,10 +6,7 @@ const MedicationsScreen = {
 
   async render() {
     const screen = document.getElementById('screen-medications');
-    const [medications, phases] = await Promise.all([
-      DB.getMedications(),
-      DB.getPhases(),
-    ]);
+    const [medications, phases, protocols] = await Promise.all([DB.getMedications(),DB.getPhases(),DB.getProtocols()]);
 
     const listHtml = medications.length === 0
       ? `<div class="empty-state"><div class="empty-icon">💊</div><p>Aucun traitement.<br>Ajoutez votre premier médicament.</p></div>`
@@ -21,6 +18,7 @@ const MedicationsScreen = {
 
     screen.innerHTML = `
       <div class="section-title">Traitements</div>
+      ${MedicationsScreen._protocolsSection(protocols, medications)}
       <div class="section-subtitle">${medications.length} médicament${medications.length !== 1 ? 's' : ''} configuré${medications.length !== 1 ? 's' : ''}</div>
       <div class="med-list">${listHtml}</div>
       <button class="fab" id="btn-add-med">＋</button>
@@ -28,7 +26,7 @@ const MedicationsScreen = {
 
     // Bind FAB
     screen.querySelector('#btn-add-med').addEventListener('click', () => {
-      MedicationsScreen.openForm(null);
+      MedicationsScreen.openForm(null, null, protocols);
     });
 
     // Bind edit / delete buttons
@@ -38,7 +36,7 @@ const MedicationsScreen = {
         const medId = btn.dataset.medId;
         const med = medications.find(m => m.id === medId);
         const medPhases = phases.filter(p => p.medicationId === medId);
-        MedicationsScreen.openForm(med, medPhases);
+        MedicationsScreen.openForm(med, medPhases, protocols);
       });
     });
 
@@ -50,6 +48,12 @@ const MedicationsScreen = {
         MedicationsScreen.confirmDelete(med);
       });
     });
+
+    screen.querySelector('#btn-add-protocol')?.addEventListener('click',()=>MedicationsScreen.openProtocolForm());
+    screen.querySelectorAll('.btn-protocol-action').forEach(btn=>btn.addEventListener('click',async()=>{
+      const p=protocols.find(x=>x.id===btn.dataset.protocolId); if(!p) return;
+      await MedicationsScreen.handleProtocolAction(p, btn.dataset.action);
+    }));
   },
 
   _medCard(med, phases) {
@@ -87,7 +91,7 @@ const MedicationsScreen = {
 
   // ── FORM (add / edit) ────────────────────────────────────────
 
-  openForm(med, existingPhases) {
+  openForm(med, existingPhases, protocols = []) {
     const isEdit = !!med;
     const phases = existingPhases ? existingPhases.map(p => ({ ...p })) : [];
 
@@ -96,6 +100,7 @@ const MedicationsScreen = {
       id: med ? med.id : uid(),
       name: med ? med.name : '',
       type: med ? (med.type || '') : '',
+      protocolId: med?.protocolId || protocols[0]?.id || null,
       phases: phases.length > 0 ? phases : [MedicationsScreen._newPhase()],
     };
 
@@ -113,6 +118,10 @@ const MedicationsScreen = {
           <div class="form-group">
             <label class="form-label">Type / forme</label>
             <input class="form-input" id="f-med-type" type="text" placeholder="Ex: comprimé, injection, gel…" value="${escHtml(formData.type)}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Protocole</label>
+            <select class="form-input" id="f-med-protocol">${protocols.map(p=>`<option value="${escHtml(p.id)}" ${formData.protocolId===p.id?'selected':''}>${escHtml(p.name)}</option>`).join('')}</select>
           </div>
 
           <div style="margin-bottom:10px;font-size:0.85rem;font-weight:500;color:var(--text-soft);">Phases de traitement</div>
@@ -240,11 +249,11 @@ const MedicationsScreen = {
       const validationError = MedicationsScreen._validateForm(formData);
       if (validationError) { showToast(validationError); return; }
 
-      const med = { id: formData.id, name: formData.name.trim(), type: formData.type.trim() };
+      const med = { id: formData.id, name: formData.name.trim(), type: formData.type.trim(), protocolId: formData.protocolId || null };
       try {
         await DB.saveMedication(med);
         if (isEdit) await DB.deletePhasesByMedication(med.id);
-        for (const p of formData.phases) await DB.savePhase({ ...p, medicationId: med.id });
+        for (const p of formData.phases) await DB.savePhase({ ...p, medicationId: med.id, protocolId: med.protocolId });
       } catch (err) {
         console.error('Medication save failed', err);
         showToast('Erreur de sauvegarde du traitement');
@@ -255,10 +264,10 @@ const MedicationsScreen = {
       showToast(isEdit ? '✓ Traitement mis à jour' : '✓ Traitement créé');
       await MedicationsScreen.render();
       // Also refresh today and calendar
-      await TodayScreen.render(App.selectedDate);
+      await TodayScreen.render();
       TimelineScreen._viewYear = null; // reset calendar view
       if (document.querySelector('#screen-timeline.active')) {
-        await TimelineScreen.render(App.selectedDate);
+        await TimelineScreen.render();
       }
     });
   },
@@ -289,6 +298,7 @@ const MedicationsScreen = {
     const typeEl = document.getElementById('f-med-type');
     if (nameEl) formData.name = nameEl.value;
     if (typeEl) formData.type = typeEl.value;
+    const protEl = document.getElementById('f-med-protocol'); if (protEl) formData.protocolId = protEl.value || null;
 
     // Read each phase
     document.querySelectorAll('.phase-block').forEach(block => {
@@ -318,6 +328,34 @@ const MedicationsScreen = {
     };
   },
 
+
+  _protocolsSection(protocols, medications){
+    const cards = protocols.map(p=>{
+      const count=medications.filter(m=>m.protocolId===p.id).length;
+      return `<div class="card card-sm"><div style="display:flex;justify-content:space-between;align-items:center;"><div><strong>${escHtml(p.name)}</strong><div style="font-size:.8rem;color:var(--text-soft);">${escHtml(p.status||'active')} · ${escHtml(p.startDate||'—')} ${p.endDate?`→ ${escHtml(p.endDate)}`:''} · ${count} médicaments</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn-settings btn-protocol-action" data-action="edit" data-protocol-id="${escHtml(p.id)}">Modifier</button><button class="btn-settings btn-protocol-action" data-action="pause" data-protocol-id="${escHtml(p.id)}">Pause</button><button class="btn-settings btn-protocol-action" data-action="resume" data-protocol-id="${escHtml(p.id)}">Reprendre</button><button class="btn-settings btn-protocol-action" data-action="complete" data-protocol-id="${escHtml(p.id)}">Terminer</button><button class="btn-settings btn-protocol-action" data-action="archive" data-protocol-id="${escHtml(p.id)}">Archiver</button><button class="btn-settings btn-protocol-action" data-action="delete" data-protocol-id="${escHtml(p.id)}">Supprimer</button></div></div></div>`;
+    }).join('');
+    return `<div class="section-subtitle">Protocoles</div><div>${cards || '<div class="card card-sm">Aucun protocole</div>'}</div><button class="btn-settings" id="btn-add-protocol" style="margin-bottom:10px;">+ Protocole</button>`;
+  },
+  openProtocolForm(protocol=null){
+    const now=todayStr();
+    const c=`<div class="modal-header"><span class="modal-title">${protocol?'Modifier':'Nouveau protocole'}</span><button class="modal-close" id="modal-close-btn">✕</button></div><div class="modal-body"><div class="form-group"><label class="form-label">Nom</label><input id="p-name" class="form-input" value="${escHtml(protocol?.name||'')}"/></div><div class="form-group"><label class="form-label">Début</label><input id="p-start" type="date" class="form-input" value="${escHtml(protocol?.startDate||now)}"/></div><div class="form-group"><label class="form-label">Fin</label><input id="p-end" type="date" class="form-input" value="${escHtml(protocol?.endDate||'')}"/></div></div><div class="modal-footer"><button class="btn-secondary" id="p-cancel">Annuler</button><button class="btn-primary" id="p-save">Enregistrer</button></div>`;
+    Modal.show(c);
+    document.getElementById('modal-close-btn').onclick=()=>Modal.hide();
+    document.getElementById('p-cancel').onclick=()=>Modal.hide();
+    document.getElementById('p-save').onclick=async()=>{try{const name=document.getElementById('p-name').value.trim(); if(!name) return showToast('Nom obligatoire'); const startDate=document.getElementById('p-start').value; const endDate=document.getElementById('p-end').value||null; const data={...(protocol||{}),id:protocol?.id||uid(),name,startDate,endDate,status:protocol?.status||'active',updatedAt:new Date().toISOString(),createdAt:protocol?.createdAt||new Date().toISOString()}; await DB.saveProtocol(data); Modal.hide(); await MedicationsScreen.render(); showToast('Protocole enregistré');}catch(e){console.error(e);showToast('Erreur protocole');}};
+  },
+  async handleProtocolAction(protocol, action){
+    try{
+      if(action==='edit') return MedicationsScreen.openProtocolForm(protocol);
+      if(action==='delete'){ if(!confirm('Supprimer ce protocole ?')) return; const meds=await DB.getMedications(); if(meds.some(m=>m.protocolId===protocol.id)) return showToast('Protocole utilisé par des médicaments'); await DB.deleteProtocol(protocol.id); showToast('Protocole supprimé'); return MedicationsScreen.render(); }
+      const next = {...protocol, updatedAt:new Date().toISOString()};
+      if(action==='pause') next.status='paused';
+      if(action==='resume') next.status='active';
+      if(action==='complete') next.status='completed';
+      if(action==='archive') { if(!confirm('Archiver ce protocole ?')) return; next.status='archived'; }
+      await DB.saveProtocol(next); showToast('Protocole mis à jour'); await MedicationsScreen.render(); await TodayScreen.render(); await TimelineScreen.render();
+    }catch(err){console.error(err);showToast('Action protocole impossible');}
+  },
   // ── DELETE ────────────────────────────────────────────────────
 
   confirmDelete(med) {
@@ -355,7 +393,7 @@ const MedicationsScreen = {
       Modal.hide();
       showToast('Traitement supprimé');
       await MedicationsScreen.render();
-      await TodayScreen.render(App.selectedDate);
+      await TodayScreen.render();
     });
   },
 };

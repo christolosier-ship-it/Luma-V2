@@ -8,7 +8,7 @@
 
 <br/>
 
-![Version](https://img.shields.io/badge/version-2.1-7a9e87?style=flat-square)
+![Version](https://img.shields.io/badge/version-3.1-7a9e87?style=flat-square)
 ![PWA](https://img.shields.io/badge/PWA-installable-4f7a62?style=flat-square)
 ![Offline](https://img.shields.io/badge/offline-ready-c8ddd0?style=flat-square&labelColor=4f7a62)
 ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-f5f0eb?style=flat-square&labelColor=7a7268)

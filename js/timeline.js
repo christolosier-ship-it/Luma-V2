@@ -1,169 +1,45 @@
-/**
- * calendar.js — Monthly calendar + selected day intakes
- */
-
 const TimelineScreen = {
+  selectedDate: todayStr(),
+  selectedProtocolId: 'all',
 
-  _viewYear: null,
-  _viewMonth: null,
-
-  async render(selectedDateStr) {
+  async render() {
     const screen = document.getElementById('screen-timeline');
-
-    // Init view month from selected date
-    const selDate = fromDateStr(selectedDateStr);
-    if (this._viewYear === null) {
-      this._viewYear = selDate.getFullYear();
-      this._viewMonth = selDate.getMonth();
-    }
-
-    const [medications, phases, allActions] = await Promise.all([
-      DB.getMedications(),
-      DB.getPhases(),
-      DB.getAllIntakeActions(),
-    ]);
-
-    const datesWithIntakes = Intakes.getDatesWithIntakesInMonth(
-      medications, phases, this._viewYear, this._viewMonth
-    );
-
-    const actionsMap = Intakes.buildActionsMap(allActions);
-
-    screen.innerHTML = `
-      <div class="section-title">Timeline</div>
-      <div class="section-subtitle">Sélectionnez un jour pour voir les prises</div>
-      <div class="calendar-wrap card">
-        ${this._navHtml()}
-        ${this._gridHtml(selectedDateStr, datesWithIntakes)}
-      </div>
-      <div class="tl-selected-label">
-        Prises du ${capitalize(formatDateFR(selectedDateStr))}
-      </div>
-      <div id="tl-intakes-list">
-        ${await this._intakesListHtml(medications, phases, actionsMap, selectedDateStr)}
-      </div>
-    `;
-
-    // Nav buttons
-    screen.querySelector('.tl-prev').addEventListener('click', async () => {
-      this._viewMonth--;
-      if (this._viewMonth < 0) { this._viewMonth = 11; this._viewYear--; }
-      await TimelineScreen.render(App.selectedDate);
-    });
-    screen.querySelector('.tl-next').addEventListener('click', async () => {
-      this._viewMonth++;
-      if (this._viewMonth > 11) { this._viewMonth = 0; this._viewYear++; }
-      await TimelineScreen.render(App.selectedDate);
-    });
-
-    // Day click
-    screen.querySelectorAll('.tl-day[data-date]').forEach(el => {
-      el.addEventListener('click', async () => {
-        const date = el.dataset.date;
-        App.selectedDate = date;
-        App.updateHeaderDate();
-        // Re-render calendar (to move selection) + today screen
-        await TimelineScreen.render(date);
-        await TodayScreen.render(date);
-      });
-    });
+    try {
+      const [medications, phases, allActions, protocolEvents, protocols, notes] = await Promise.all([
+        DB.getMedications(), DB.getPhases(), DB.getAllIntakeActions(), DB.getProtocolEvents(), DB.getProtocols(), DB.getDailyNotes()
+      ]);
+      const actionsMap = Intakes.buildActionsMap(allActions);
+      const protocolOpts = ['<option value="all">Tous protocoles</option>'].concat(protocols.map(p=>`<option value="${escHtml(p.id)}" ${TimelineScreen.selectedProtocolId===p.id?'selected':''}>${escHtml(p.name)} (${escHtml(p.status)})</option>`)).join('');
+      const days = []; for (let i=-3;i<=14;i++){ const d=fromDateStr(todayStr()); d.setDate(d.getDate()+i); days.push(toDateStr(d)); }
+      const htmlDays = days.map(ds=>TimelineScreen._dayHtml(ds, medications, phases, actionsMap, protocolEvents, protocols, notes)).join('');
+      screen.innerHTML = `<div class="timeline-toolbar"><select id="timeline-protocol-filter" class="form-input">${protocolOpts}</select><button id="timeline-jump-today" class="btn-settings">Aujourd’hui</button><button id="timeline-add-event" class="btn-settings">+ Événement</button></div><div class="vertical-timeline">${htmlDays}</div>`;
+      screen.querySelector('#timeline-protocol-filter').addEventListener('change', async (e)=>{TimelineScreen.selectedProtocolId=e.target.value; await TimelineScreen.render(); App.updateHeaderDate();});
+      screen.querySelector('#timeline-jump-today').addEventListener('click', async ()=>{TimelineScreen.selectedDate=todayStr(); await TimelineScreen.render(); App.updateHeaderDate();});
+      screen.querySelectorAll('.timeline-day-header').forEach(el=>el.addEventListener('click',()=>{TimelineScreen.selectedDate=el.dataset.date; App.updateHeaderDate();}));
+      screen.querySelector('#timeline-add-event').addEventListener('click',()=>TimelineScreen.openEventForm(null, protocols));
+      screen.querySelectorAll('[data-ev-edit]').forEach(b=>b.onclick=()=>TimelineScreen.openEventForm(protocolEvents.find(e=>e.id===b.dataset.evEdit), protocols));
+      screen.querySelectorAll('[data-ev-toggle]').forEach(b=>b.onclick=async()=>{await DB.toggleProtocolEventCompleted(b.dataset.evToggle); await TimelineScreen.render(); await TodayScreen.render();});
+      screen.querySelectorAll('[data-ev-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Supprimer cet événement ?')) return; await DB.deleteProtocolEvent(b.dataset.evDel); await TimelineScreen.render(); await TodayScreen.render(); showToast('Événement supprimé');});
+    } catch (err) { console.error(err); showToast('Erreur timeline'); }
   },
-
-  _navHtml() {
-    const monthName = new Date(this._viewYear, this._viewMonth, 1)
-      .toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-    return `
-      <div class="tl-nav">
-        <button class="tl-nav-btn tl-prev">‹</button>
-        <div class="tl-month">${capitalize(monthName)}</div>
-        <button class="tl-nav-btn tl-next">›</button>
-      </div>
-    `;
+  openEventForm(ev, protocols){
+    const c=`<div class="modal-header"><span class="modal-title">${ev?'Modifier':'Créer'} événement</span><button class="modal-close" id="modal-close-btn">✕</button></div><div class="modal-body"><div class="form-group"><label class="form-label">Protocole</label><select id="ev-protocol" class="form-input">${protocols.map(p=>`<option value="${escHtml(p.id)}" ${(ev?.protocolId||TimelineScreen.selectedProtocolId)===p.id?'selected':''}>${escHtml(p.name)}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Titre *</label><input id="ev-title" class="form-input" value="${escHtml(ev?.title||'')}"/></div><div class="form-row"><div class="form-group"><label class="form-label">Date *</label><input id="ev-date" type="date" class="form-input" value="${escHtml(ev?.date||TimelineScreen.selectedDate)}"/></div><div class="form-group"><label class="form-label">Heure</label><input id="ev-time" type="time" class="form-input" value="${escHtml(ev?.time||'')}"/></div></div><div class="form-group"><label class="form-label">Type</label><select id="ev-type" class="form-input"><option>rendez-vous</option><option>prise de sang</option><option>examen</option><option>pharmacie</option><option>injection spéciale</option><option>étape personnalisée</option><option selected>autre</option></select></div><div class="form-group"><label class="form-label">Notes</label><input id="ev-notes" class="form-input" value="${escHtml(ev?.notes||'')}"/></div></div><div class="modal-footer"><button class="btn-secondary" id="ev-cancel">Annuler</button><button class="btn-primary" id="ev-save">Enregistrer</button></div>`;
+    Modal.show(c); const type=document.getElementById('ev-type'); if(ev?.type) type.value=ev.type;
+    document.getElementById('modal-close-btn').onclick=()=>Modal.hide(); document.getElementById('ev-cancel').onclick=()=>Modal.hide();
+    document.getElementById('ev-save').onclick=async()=>{try{const title=document.getElementById('ev-title').value.trim(); const date=document.getElementById('ev-date').value; if(!title||!date) return showToast('Titre et date obligatoires'); const data={id:ev?.id||uid(),protocolId:document.getElementById('ev-protocol').value,title,date,time:document.getElementById('ev-time').value||'',type:document.getElementById('ev-type').value,notes:document.getElementById('ev-notes').value.trim(),completed:ev?.completed||false,createdAt:ev?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()}; await DB.saveProtocolEvent(data); Modal.hide(); showToast('Événement enregistré'); await TimelineScreen.render(); await TodayScreen.render();}catch(e){console.error(e);showToast('Erreur événement');}};
   },
-
-  _gridHtml(selectedDateStr, datesWithIntakes) {
-    const today = todayStr();
-    const year = this._viewYear;
-    const month = this._viewMonth;
-
-    // Day headers (Mon → Sun)
-    const dayHeaders = ['Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa', 'Di']
-      .map(d => `<div class="tl-day-label">${d}</div>`).join('');
-
-    // First day of month (adjust: Mon=0)
-    const firstDay = new Date(year, month, 1);
-    let startDow = firstDay.getDay(); // 0=Sun
-    startDow = (startDow + 6) % 7;   // Mon=0
-
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const daysInPrevMonth = new Date(year, month, 0).getDate();
-
-    let cells = '';
-
-    // Prev month filler
-    for (let i = 0; i < startDow; i++) {
-      const day = daysInPrevMonth - startDow + 1 + i;
-      const prevMonth = month === 0 ? 11 : month - 1;
-      const prevYear = month === 0 ? year - 1 : year;
-      const dateStr = `${prevYear}-${String(prevMonth + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-      cells += `<div class="tl-day other-month" data-date="${dateStr}">${day}</div>`;
-    }
-
-    // This month
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const isToday = dateStr === today;
-      const isSelected = dateStr === selectedDateStr;
-      const hasIntakes = datesWithIntakes.has(dateStr);
-      const classes = [
-        'tl-day',
-        isToday ? 'today' : '',
-        isSelected ? 'selected' : '',
-        hasIntakes ? 'has-intakes' : '',
-      ].filter(Boolean).join(' ');
-
-      cells += `<div class="${classes}" data-date="${dateStr}">${d}</div>`;
-    }
-
-    // Next month filler
-    const totalCells = startDow + daysInMonth;
-    const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
-    for (let i = 1; i <= remaining; i++) {
-      const nextMonth = month === 11 ? 0 : month + 1;
-      const nextYear = month === 11 ? year + 1 : year;
-      const dateStr = `${nextYear}-${String(nextMonth + 1).padStart(2,'0')}-${String(i).padStart(2,'0')}`;
-      cells += `<div class="tl-day other-month" data-date="${dateStr}">${i}</div>`;
-    }
-
-    return `
-      <div class="tl-grid">
-        ${dayHeaders}
-        ${cells}
-      </div>
-    `;
+  _dayHtml(dateStr, medications, phases, actionsMap, protocolEvents, protocols, notes){
+    const dayIntakes = Intakes.mergeWithActions(Intakes.generateForDate(medications, phases, dateStr), actionsMap).filter(i=>TimelineScreen._allowProtocol(i.medId,medications,protocols));
+    const dayEvents = protocolEvents.filter(e=>e.date===dateStr && TimelineScreen._allowProtocolEvent(e,protocols));
+    const note = notes.find(n=>n.date===dateStr && (TimelineScreen.selectedProtocolId==='all' || !n.protocolId || n.protocolId===TimelineScreen.selectedProtocolId));
+    const items = [];
+    for (const i of dayIntakes){ const v=Intakes.getVisualStatus(i,dateStr); items.push(`<div class="timeline-item"><div class="timeline-item-card status-${escHtml(v)}"><div class="timeline-item-time">${escHtml(i.displayTime)}</div><div class="timeline-item-title">${escHtml(i.medName)}</div><div class="timeline-item-detail">${escHtml(i.dosage)} · ${escHtml(v)}</div></div></div>`); }
+    for (const e of dayEvents){ items.push(`<div class="timeline-item"><div class="timeline-item-card status-${e.completed?'completed':'event'}"><div class="timeline-item-time">${escHtml(e.time||'—:—')}</div><div class="timeline-item-title">${escHtml(e.title)}</div><div class="timeline-item-detail">${escHtml(e.type||'autre')} · ${e.completed?'terminé':'à faire'}</div><div style="margin-top:6px;display:flex;gap:6px;"><button class="btn-settings" data-ev-edit="${escHtml(e.id)}">Modifier</button><button class="btn-settings" data-ev-toggle="${escHtml(e.id)}">${e.completed?'Réouvrir':'Terminer'}</button><button class="btn-settings" data-ev-del="${escHtml(e.id)}">Supprimer</button></div></div></div>`); }
+    if (note?.freeNote) items.push(`<div class="timeline-item"><div class="timeline-item-card status-event"><div class="timeline-item-time">Note</div><div class="timeline-item-detail">${escHtml(note.freeNote)}</div></div></div>`);
+    const d=fromDateStr(dateStr); const label=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+    const activeP = protocols.find(p=>p.id===TimelineScreen.selectedProtocolId); let j=''; if(activeP?.startDate){ const diff=Math.floor((d-fromDateStr(activeP.startDate))/86400000)+1; if(diff>0) j=` · J${diff}`; }
+    return `<section class="timeline-day ${TimelineScreen.selectedDate===dateStr?'selected':''}"><div class="timeline-rail"></div><div class="timeline-dot"></div><div class="timeline-day-content"><div class="timeline-day-header" data-date="${dateStr}">${capitalize(label)}${dateStr===todayStr()?' · Aujourd’hui':''}${j}</div>${items.length?items.join(''):'<div class="timeline-item"><div class="timeline-item-card">Aucune action</div></div>'}</div></section>`;
   },
-
-  async _intakesListHtml(medications, phases, actionsMap, dateStr) {
-    const events = Intakes.generateForDate(medications, phases, dateStr);
-    const intakes = Intakes.mergeWithActions(events, actionsMap);
-
-    if (intakes.length === 0) {
-      return `<div class="empty-state"><div class="empty-icon">✨</div><p>Aucune prise ce jour.</p></div>`;
-    }
-
-    return intakes.map(i => {
-      const statusLabel = { taken: '✓ Pris', skipped: '⊘ Passé', snoozed: '⏱ Reporté', pending: '—' }[i.status] || '—';
-      const statusColor = { taken: 'var(--sage)', skipped: 'var(--text-light)', snoozed: 'var(--peach)', pending: 'var(--border)' }[i.status];
-      return `
-        <div class="card card-sm" style="border-left: 4px solid ${statusColor}; margin-bottom:8px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;">
-            <span style="font-weight:600;color:var(--sage-dark);">${i.displayTime}</span>
-            <span style="font-size:0.78rem;color:var(--text-soft);">${statusLabel}</span>
-          </div>
-          <div style="font-weight:600;margin-top:4px;">${escHtml(i.medName)}</div>
-          <div style="font-size:0.82rem;color:var(--text-soft);">${escHtml(i.dosage)}${i.medType ? ' · ' + escHtml(i.medType) : ''}</div>
-        </div>
-      `;
-    }).join('');
-  },
+  _allowProtocol(medId, medications, protocols){ const med=medications.find(m=>m.id===medId); if(!med) return false; if(TimelineScreen.selectedProtocolId!=='all' && med.protocolId!==TimelineScreen.selectedProtocolId) return false; const p=protocols.find(x=>x.id===med.protocolId); return !p || p.status!=='archived'; },
+  _allowProtocolEvent(e, protocols){ if(TimelineScreen.selectedProtocolId!=='all'&&e.protocolId!==TimelineScreen.selectedProtocolId) return false; const p=protocols.find(x=>x.id===e.protocolId); return !p || p.status!=='archived'; }
 };

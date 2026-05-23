@@ -1,21 +1,24 @@
 const JournalScreen = {
+  period: '7',
+  protocolId: 'all',
   async render() {
     const screen = document.getElementById('screen-journal');
-    const [events, notes] = await Promise.all([DB.getIntakeEvents(), DB.getDailyNotes()]);
-    const last7 = events.filter(e => e.createdAt >= new Date(Date.now() - 7 * 86400000).toISOString());
-    const taken = last7.filter(e => e.type === 'taken').length;
-    const skipped = last7.filter(e => e.type === 'skipped').length;
-    const snoozed = last7.filter(e => e.type === 'snoozed').length;
-    const note = notes.find(n => n.date === todayStr());
-    screen.innerHTML = `<div class="section-title">Journal</div>
-      <div class="card"><strong>7 derniers jours</strong><div>Prises enregistrées: ${taken}</div><div>Passées: ${skipped}</div><div>Reportées: ${snoozed}</div></div>
-      <div class="card"><strong>Note du jour</strong><textarea id="daily-note" class="form-input" rows="4" placeholder="Symptômes / note libre">${escHtml(note?.freeNote || '')}</textarea>
-      <div style="font-size:.8rem;color:var(--text-soft);margin-top:8px;">En cas de doute ou de symptôme important, contactez un professionnel de santé.</div>
-      <button class="btn-primary" id="save-note" style="margin-top:10px;">Enregistrer</button></div>`;
-    screen.querySelector('#save-note').addEventListener('click', async () => {
-      const now = new Date().toISOString();
-      await DB.saveDailyNote({ id: note?.id || uid(), date: todayStr(), protocolId: note?.protocolId || null, symptoms: note?.symptoms || {}, freeNote: screen.querySelector('#daily-note').value.trim(), createdAt: note?.createdAt || now, updatedAt: now });
-      showToast('✓ Note enregistrée');
-    });
-  }
+    try {
+      const [notes, meds, phases, actions, protocolEvents, protocols, intakeEvents] = await Promise.all([DB.getDailyNotes(), DB.getMedications(), DB.getPhases(), DB.getAllIntakeActions(), DB.getProtocolEvents(), DB.getProtocols(), DB.getIntakeEvents()]);
+      const days = JournalScreen._buildDays(notes, meds, phases, actions, protocolEvents, protocols, intakeEvents);
+      const stats = JournalScreen._stats(days);
+      screen.innerHTML = `<div class='section-title'>Journal consultable</div><div class='card'><select id='j-period' class='form-input'><option value='7' ${this.period==='7'?'selected':''}>7 jours</option><option value='30' ${this.period==='30'?'selected':''}>30 jours</option><option value='all' ${this.period==='all'?'selected':''}>Tout</option></select><select id='j-protocol' class='form-input' style='margin-top:8px;'><option value='all'>Tous protocoles</option>${protocols.map(p=>`<option value='${escHtml(p.id)}' ${this.protocolId===p.id?'selected':''}>${escHtml(p.name)}</option>`).join('')}</select></div><div class='card'><strong>Stats</strong><div>Prévues: ${stats.planned} · Prises: ${stats.taken} · Passées: ${stats.skipped} · Oubliées: ${stats.missed}</div><div>Reportées: ${stats.snoozed} · Observance: ${stats.adherence}% · Retard moyen: ${stats.avgDelay} min</div><div>Événements: ${stats.eventsDone}/${stats.eventsPlanned}</div><button class='btn-settings' id='btn-csv'>Export CSV</button> <button class='btn-settings' id='btn-report'>Rapport imprimable</button></div>${days.map((d,idx)=>`<details class='card' ${idx===0?'open':''}><summary><strong>${capitalize(formatDateFR(d.date))}</strong> — ${d.intakes.length} prises · ${d.events.length} événements</summary>${d.intakes.map(i=>`<div>${escHtml(i.time)} — ${escHtml(i.medName)} — ${escHtml(i.status)}</div>`).join('')}${d.events.map(e=>`<div>${escHtml(e.time||'—')} — ${escHtml(e.title)} — ${e.completed?'terminé':'à faire'}</div>`).join('')}<div style='font-size:.82rem;color:var(--text-soft);margin-top:6px;'>Actions: ${d.intakeEvents.map(e=>escHtml(e.type)).join(', ')||'—'}</div>${d.note?`<div><em>${escHtml(d.note.freeNote||'')}</em></div>`:''}</details>`).join('')}`;
+      screen.querySelector('#j-period').addEventListener('change',async e=>{this.period=e.target.value; await this.render();});
+      screen.querySelector('#j-protocol').addEventListener('change',async e=>{this.protocolId=e.target.value; await this.render();});
+      screen.querySelector('#btn-csv').addEventListener('click',()=>this._exportCsv(days));
+      screen.querySelector('#btn-report').addEventListener('click',()=>this._printReport(days,stats));
+    } catch (err) { console.error(err); showToast('Erreur affichage journal'); }
+  },
+  _buildDays(notes, meds, phases, actions, protocolEvents, protocols, intakeEvents){
+    const map = Intakes.buildActionsMap(actions); const days=[]; const total=this.period==='all'?180:Number(this.period);
+    for(let i=0;i<total;i++){const d=new Date(); d.setDate(d.getDate()-i); const ds=toDateStr(d); const intakes=Intakes.mergeWithActions(Intakes.generateForDate(meds,phases,ds),map).filter(x=>this.protocolId==='all'||meds.find(m=>m.id===x.medId)?.protocolId===this.protocolId); const events=protocolEvents.filter(e=>e.date===ds&&(this.protocolId==='all'||e.protocolId===this.protocolId)); const dayEvents=(intakeEvents||[]).filter(e=>e.payload?.scheduledDate===ds); days.push({date:ds,intakes,events,note:notes.find(n=>n.date===ds),intakeEvents:dayEvents}); } return days;
+  },
+  _stats(days){const flat=days.flatMap(d=>d.intakes); const planned=flat.length; const taken=flat.filter(i=>i.status==='taken').length; const skipped=flat.filter(i=>i.status==='skipped').length; const snoozed=flat.filter(i=>i.status==='snoozed').length; const missed=days.reduce((acc,d)=>acc+d.intakes.filter(i=>i.status==='pending'&&d.date<todayStr()).length,0); return {planned,taken,skipped,snoozed,missed,adherence:planned?Math.round((taken/planned)*100):0,avgDelay:Math.round((flat.filter(i=>i.status==='taken'&&i.takenAt).map(i=>{const [h,m]=i.time.split(':').map(Number); const sched=h*60+m; const d=new Date(i.takenAt); return Math.max(0,d.getHours()*60+d.getMinutes()-sched);}).reduce((a,b)=>a+b,0))/Math.max(1,flat.filter(i=>i.status==='taken'&&i.takenAt).length)),eventsPlanned:days.flatMap(d=>d.events).length,eventsDone:days.flatMap(d=>d.events).filter(e=>e.completed).length};},
+  _exportCsv(days){ const rows=[["Date","Type ligne","Heure","Titre","Statut","Note"]]; for(const d of days){ for(const i of d.intakes) rows.push([d.date,'prise',i.time,i.medName,i.status,d.note?.freeNote||'']); for(const e of d.events) rows.push([d.date,'événement',e.time||'',e.title,e.completed?'terminé':'à faire',d.note?.freeNote||'']); } const csv='\uFEFF'+rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(';')).join('\n'); const b=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=`luma-journal-${todayStr()}.csv`; a.click(); URL.revokeObjectURL(u);},
+  _printReport(days,stats){ const w=window.open('','_blank'); w.document.write(`<html><head><title>Rapport Luma</title><style>body{font-family:sans-serif;padding:16px}h1{color:#1266C3}.day{margin:12px 0;padding:8px;border:1px solid #ddd;border-radius:8px}</style></head><body><h1>Rapport Luma V3.1.1</h1><p>${new Date().toLocaleString('fr-FR')}</p><p>Résumé: ${stats.taken}/${stats.planned} prises</p>${days.map(d=>`<div class='day'><strong>${d.date}</strong><br>${d.intakes.map(i=>`${i.time} ${i.medName} ${i.status}`).join('<br>')}<br>${d.events.map(e=>`${e.time||''} ${e.title} ${e.completed?'terminé':'à faire'}`).join('<br>')}</div>`).join('')}<p>Ce rapport est un journal personnel de suivi. Il ne constitue pas un avis médical.</p></body></html>`); w.document.close(); w.print(); }
 };
