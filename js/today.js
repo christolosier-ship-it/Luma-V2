@@ -101,6 +101,16 @@ const TodayScreen = {
         actionData.snoozedTime = addMinutesToTime(currentTime, 15);
       }
       await DB.saveIntakeAction(actionData);
+      const parts = key.split('|');
+      await DB.saveIntakeEvent({
+        id: uid(),
+        intakeKey: key,
+        protocolId: null,
+        medicationId: parts[0] || null,
+        type: action,
+        createdAt: new Date().toISOString(),
+        payload: { scheduledDate: dateStr, scheduledTime: currentTime, actualTime: actionData.snoozedTime || currentTime }
+      });
       showToast({ taken: '✓ Prise enregistrée', skipped: '⊘ Prise passée', snoozed: '⏱ Reportée de 15 min' }[action] || 'Mis à jour');
       await TodayScreen.render(dateStr);
     } catch (err) {

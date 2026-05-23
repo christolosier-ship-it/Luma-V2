@@ -1,24 +1,24 @@
-/**
- * db.js — IndexedDB wrapper for Luma
- * Stores: medications, phases, intakeActions
- * intakeEvents are generated on-the-fly from phases
- */
-
 const DB_NAME = 'luma_db';
-const DB_VERSION = 1;
+const DB_VERSION = 3;
 
 const STORES = {
+  PROTOCOLS: 'protocols',
   MEDICATIONS: 'medications',
   PHASES: 'phases',
   INTAKE_ACTIONS: 'intakeActions',
+  INTAKE_EVENTS: 'intakeEvents',
+  DAILY_NOTES: 'dailyNotes',
+  PROTOCOL_EVENTS: 'protocolEvents',
 };
 
 let _db = null;
+const DEFAULT_PROTOCOL_NAME = 'Traitement principal';
 
 function openDB() {
   return new Promise((resolve, reject) => {
-    if (_db) { resolve(_db); return; }
+    if (_db) return resolve(_db);
     const req = indexedDB.open(DB_NAME, DB_VERSION);
+
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains(STORES.MEDICATIONS)) {
@@ -30,144 +30,135 @@ function openDB() {
         ps.createIndex('medicationId', 'medicationId', { unique: false });
       }
       if (!db.objectStoreNames.contains(STORES.INTAKE_ACTIONS)) {
-        // key: "medicationId|phaseId|date|time"
         db.createObjectStore(STORES.INTAKE_ACTIONS, { keyPath: 'key' });
+      }
+      if (!db.objectStoreNames.contains(STORES.PROTOCOLS)) {
+        const s = db.createObjectStore(STORES.PROTOCOLS, { keyPath: 'id' });
+        s.createIndex('status', 'status', { unique: false });
+        s.createIndex('startDate', 'startDate', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(STORES.INTAKE_EVENTS)) {
+        const s = db.createObjectStore(STORES.INTAKE_EVENTS, { keyPath: 'id' });
+        s.createIndex('intakeKey', 'intakeKey', { unique: false });
+        s.createIndex('medicationId', 'medicationId', { unique: false });
+        s.createIndex('protocolId', 'protocolId', { unique: false });
+        s.createIndex('createdAt', 'createdAt', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(STORES.DAILY_NOTES)) {
+        const s = db.createObjectStore(STORES.DAILY_NOTES, { keyPath: 'id' });
+        s.createIndex('date', 'date', { unique: false });
+        s.createIndex('protocolId', 'protocolId', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(STORES.PROTOCOL_EVENTS)) {
+        const s = db.createObjectStore(STORES.PROTOCOL_EVENTS, { keyPath: 'id' });
+        s.createIndex('protocolId', 'protocolId', { unique: false });
+        s.createIndex('date', 'date', { unique: false });
+        s.createIndex('completed', 'completed', { unique: false });
       }
     };
     req.onsuccess = (e) => { _db = e.target.result; resolve(_db); };
     req.onerror = () => reject(req.error);
   });
 }
+function tx(storeName, mode = 'readonly') { return _db.transaction(storeName, mode).objectStore(storeName); }
+function getAll(storeName) { return new Promise((resolve,reject)=>{ const r=tx(storeName).getAll(); r.onsuccess=()=>resolve(r.result); r.onerror=()=>reject(r.error);}); }
+function putItem(storeName, item) { return new Promise((resolve,reject)=>{ const r=tx(storeName,'readwrite').put(item); r.onsuccess=()=>resolve(r.result); r.onerror=()=>reject(r.error);}); }
+function deleteItem(storeName,key){ return new Promise((resolve,reject)=>{ const r=tx(storeName,'readwrite').delete(key); r.onsuccess=()=>resolve(); r.onerror=()=>reject(r.error);}); }
+function clearStore(storeName){ return new Promise((resolve,reject)=>{ const r=tx(storeName,'readwrite').clear(); r.onsuccess=()=>resolve(); r.onerror=()=>reject(r.error);}); }
 
-function tx(storeName, mode = 'readonly') {
-  return _db.transaction(storeName, mode).objectStore(storeName);
+async function ensureDefaultProtocolAndLinks() {
+  const [protocols, meds, phases] = await Promise.all([getAll(STORES.PROTOCOLS), getAll(STORES.MEDICATIONS), getAll(STORES.PHASES)]);
+  const nowIso = new Date().toISOString();
+  let defaultProtocol = protocols.find((p) => p.isDefault) || protocols[0] || null;
+  const medsNeed = meds.some((m) => !m.protocolId);
+  const phasesNeed = phases.some((p) => !p.protocolId);
+  if ((!defaultProtocol && (meds.length || phases.length)) || medsNeed || phasesNeed) {
+    if (!defaultProtocol) {
+      const startDate = phases.map((p) => p.startDate).filter(Boolean).sort()[0] || todayStr();
+      defaultProtocol = { id: uid(), name: DEFAULT_PROTOCOL_NAME, type: 'free', startDate, status: 'active', notes: '', isDefault: true, createdAt: nowIso, updatedAt: nowIso };
+      await putItem(STORES.PROTOCOLS, defaultProtocol);
+    }
+    for (const med of meds) if (!med.protocolId) await putItem(STORES.MEDICATIONS, { ...med, protocolId: defaultProtocol.id });
+    for (const phase of phases) if (!phase.protocolId) await putItem(STORES.PHASES, { ...phase, protocolId: defaultProtocol.id });
+  }
 }
-
-function getAll(storeName) {
-  return new Promise((resolve, reject) => {
-    const req = tx(storeName).getAll();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function getByIndex(storeName, indexName, value) {
-  return new Promise((resolve, reject) => {
-    const req = tx(storeName).index(indexName).getAll(value);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function putItem(storeName, item) {
-  return new Promise((resolve, reject) => {
-    const req = tx(storeName, 'readwrite').put(item);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function deleteItem(storeName, key) {
-  return new Promise((resolve, reject) => {
-    const req = tx(storeName, 'readwrite').delete(key);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function clearStore(storeName) {
-  return new Promise((resolve, reject) => {
-    const req = tx(storeName, 'readwrite').clear();
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-  });
-}
-
-// ── Public API ──────────────────────────────────────────────
 
 const DB = {
-
-  async init() {
-    await openDB();
-  },
-
-  // MEDICATIONS
+  async init() { await openDB(); await ensureDefaultProtocolAndLinks(); },
+  async getProtocols() { return getAll(STORES.PROTOCOLS); },
+  async saveProtocol(p) { return putItem(STORES.PROTOCOLS, p); },
   async getMedications() { return getAll(STORES.MEDICATIONS); },
   async saveMedication(med) { return putItem(STORES.MEDICATIONS, med); },
   async deleteMedication(id) { return deleteItem(STORES.MEDICATIONS, id); },
-
-  // PHASES
   async getPhases() { return getAll(STORES.PHASES); },
-  async getPhasesByMedication(medId) { return getByIndex(STORES.PHASES, 'medicationId', medId); },
   async savePhase(phase) { return putItem(STORES.PHASES, phase); },
-  async deletePhase(id) { return deleteItem(STORES.PHASES, id); },
-  async deletePhasesByMedication(medId) {
-    const phases = await DB.getPhasesByMedication(medId);
-    for (const p of phases) await deleteItem(STORES.PHASES, p.id);
-  },
-
-  // INTAKE ACTIONS
-  // key format: "medId|phaseId|YYYY-MM-DD|HH:MM"
-  async getIntakeAction(key) {
-    return new Promise((resolve, reject) => {
-      const req = tx(STORES.INTAKE_ACTIONS).get(key);
-      req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => reject(req.error);
-    });
-  },
+  async deletePhasesByMedication(medId) { for (const p of await getAll(STORES.PHASES)) if (p.medicationId === medId) await deleteItem(STORES.PHASES,p.id); },
   async getAllIntakeActions() { return getAll(STORES.INTAKE_ACTIONS); },
-  async saveIntakeAction(action) { return putItem(STORES.INTAKE_ACTIONS, action); },
-  async deleteIntakeAction(key) { return deleteItem(STORES.INTAKE_ACTIONS, key); },
+  async saveIntakeAction(a){ return putItem(STORES.INTAKE_ACTIONS,a); },
+  async deleteIntakeAction(key){ return deleteItem(STORES.INTAKE_ACTIONS,key); },
+  async saveIntakeEvent(e){ return putItem(STORES.INTAKE_EVENTS,e); },
+  async getIntakeEvents(){ return getAll(STORES.INTAKE_EVENTS); },
+  async getDailyNotes(){ return getAll(STORES.DAILY_NOTES); },
+  async saveDailyNote(n){ return putItem(STORES.DAILY_NOTES,n); },
+  async getProtocolEvents(){ return getAll(STORES.PROTOCOL_EVENTS); },
+  async saveProtocolEvent(ev){ return putItem(STORES.PROTOCOL_EVENTS,ev); },
 
-  // EXPORT / IMPORT / RESET
   async exportAll() {
-    const [medications, phases, intakeActions] = await Promise.all([
-      DB.getMedications(),
-      DB.getPhases(),
-      DB.getAllIntakeActions(),
+    const [protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents] = await Promise.all([
+      getAll(STORES.PROTOCOLS),getAll(STORES.MEDICATIONS),getAll(STORES.PHASES),getAll(STORES.INTAKE_ACTIONS),getAll(STORES.INTAKE_EVENTS),getAll(STORES.DAILY_NOTES),getAll(STORES.PROTOCOL_EVENTS)
     ]);
-    return { app: 'Luma', version: '2.1', exportedAt: new Date().toISOString(), medications, phases, intakeActions };
+    return { app:'Luma', version:'3.0', exportedAt:new Date().toISOString(), protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents, settings:{} };
   },
-
-  validateImportData(data) {
-    if (!data || typeof data !== 'object') return { ok: false, error: 'Fichier JSON invalide' };
-    const medications = data.medications || [];
-    const phases = data.phases || [];
-    const intakeActions = data.intakeActions || [];
-    if (!Array.isArray(medications) || !Array.isArray(phases) || !Array.isArray(intakeActions)) return { ok: false, error: 'Structure JSON invalide' };
-    const medIds = new Set();
-    for (const m of medications) { if (!m || !m.id || !m.name) return { ok: false, error: 'Médicament incomplet' }; medIds.add(m.id); }
+  validateImportData(data){
+    if (!data || typeof data !== 'object') return {ok:false,error:'Fichier JSON invalide'};
+    const version = String(data.version || '2.0');
+    const meds = data.medications || []; const phases = data.phases || []; const actions = data.intakeActions || [];
+    if (![meds,phases,actions].every(Array.isArray)) return {ok:false,error:'Structure JSON invalide'};
+    const protocols = Array.isArray(data.protocols) ? data.protocols : [];
+    const protocolIds = new Set(protocols.map(p=>p.id));
+    const medIds = new Set(meds.map(m=>m.id));
+    for (const m of meds) if (!m.id || !m.name) return {ok:false,error:'Médicament incomplet'};
     for (const p of phases) {
-      if (!p || !p.id || !p.medicationId || !p.startDate) return { ok: false, error: 'Phase incomplète' };
-      if (!medIds.has(p.medicationId)) return { ok: false, error: 'Phase liée à un médicament inexistant' };
-      if (p.endDate && p.endDate < p.startDate) return { ok: false, error: 'Date de phase invalide' };
-      if (!Array.isArray(p.times) || p.times.some(t => !isValidTimeHHMM(t))) return { ok: false, error: 'Heures de phase invalides' };
+      if (!p.id || !p.medicationId || !p.startDate) return {ok:false,error:'Phase incomplète'};
+      if (!medIds.has(p.medicationId)) return {ok:false,error:'Phase liée à un médicament inexistant'};
+      if (!Array.isArray(p.times) || p.times.some(t=>!isValidTimeHHMM(t))) return {ok:false,error:'Heures de phase invalides'};
     }
-    return { ok: true };
+    if (version.startsWith('3')) {
+      for (const ev of (data.protocolEvents || [])) if (!ev.protocolId || !protocolIds.has(ev.protocolId)) return {ok:false,error:'Événement protocole invalide'};
+    }
+    return {ok:true, version};
   },
-
-  async importAll(data) {
+  async importAll(data){
     const backup = await DB.exportAll();
-    const validation = DB.validateImportData(data);
-    if (!validation.ok) throw new Error(validation.error);
+    const v = DB.validateImportData(data); if (!v.ok) throw new Error(v.error);
+    const incoming = structuredClone(data);
+    if (!Array.isArray(incoming.protocols) || incoming.protocols.length === 0) {
+      const defaultProtocol = { id: uid(), name: DEFAULT_PROTOCOL_NAME, type:'free', startDate: incoming.phases?.map(p=>p.startDate).filter(Boolean).sort()[0] || todayStr(), status:'active', createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(), isDefault:true };
+      incoming.protocols = [defaultProtocol];
+      incoming.medications = (incoming.medications||[]).map(m=>({...m, protocolId:m.protocolId || defaultProtocol.id}));
+      incoming.phases = (incoming.phases||[]).map(p=>({...p, protocolId:p.protocolId || defaultProtocol.id}));
+    }
     try {
-      await clearStore(STORES.MEDICATIONS); await clearStore(STORES.PHASES); await clearStore(STORES.INTAKE_ACTIONS);
-      for (const m of (data.medications || [])) await putItem(STORES.MEDICATIONS, m);
-      for (const p of (data.phases || [])) await putItem(STORES.PHASES, p);
-      for (const a of (data.intakeActions || [])) await putItem(STORES.INTAKE_ACTIONS, a);
+      for (const s of Object.values(STORES)) await clearStore(s);
+      for (const p of incoming.protocols || []) await putItem(STORES.PROTOCOLS,p);
+      for (const m of incoming.medications || []) await putItem(STORES.MEDICATIONS,m);
+      for (const p of incoming.phases || []) await putItem(STORES.PHASES,p);
+      for (const a of incoming.intakeActions || []) await putItem(STORES.INTAKE_ACTIONS,a);
+      for (const e of incoming.intakeEvents || []) await putItem(STORES.INTAKE_EVENTS,e);
+      for (const n of incoming.dailyNotes || []) await putItem(STORES.DAILY_NOTES,n);
+      for (const e of incoming.protocolEvents || []) await putItem(STORES.PROTOCOL_EVENTS,e);
     } catch (err) {
-      console.error('Import transaction failed, restoring backup', err);
-      await clearStore(STORES.MEDICATIONS); await clearStore(STORES.PHASES); await clearStore(STORES.INTAKE_ACTIONS);
-      for (const m of backup.medications || []) await putItem(STORES.MEDICATIONS, m);
-      for (const p of backup.phases || []) await putItem(STORES.PHASES, p);
-      for (const a of backup.intakeActions || []) await putItem(STORES.INTAKE_ACTIONS, a);
+      console.error('Import failed, restore backup', err);
+      for (const s of Object.values(STORES)) await clearStore(s);
+      for (const p of backup.protocols || []) await putItem(STORES.PROTOCOLS,p);
+      for (const m of backup.medications || []) await putItem(STORES.MEDICATIONS,m);
+      for (const p of backup.phases || []) await putItem(STORES.PHASES,p);
+      for (const a of backup.intakeActions || []) await putItem(STORES.INTAKE_ACTIONS,a);
+      for (const e of backup.intakeEvents || []) await putItem(STORES.INTAKE_EVENTS,e);
+      for (const n of backup.dailyNotes || []) await putItem(STORES.DAILY_NOTES,n);
+      for (const e of backup.protocolEvents || []) await putItem(STORES.PROTOCOL_EVENTS,e);
       throw err;
     }
   },
-
-  async resetAll() {
-    await clearStore(STORES.MEDICATIONS);
-    await clearStore(STORES.PHASES);
-    await clearStore(STORES.INTAKE_ACTIONS);
-  },
+  async resetAll(){ for (const s of Object.values(STORES)) await clearStore(s); },
 };

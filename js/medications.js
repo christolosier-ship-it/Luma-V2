@@ -256,9 +256,9 @@ const MedicationsScreen = {
       await MedicationsScreen.render();
       // Also refresh today and calendar
       await TodayScreen.render(App.selectedDate);
-      CalendarScreen._viewYear = null; // reset calendar view
-      if (document.querySelector('#screen-calendar.active')) {
-        await CalendarScreen.render(App.selectedDate);
+      TimelineScreen._viewYear = null; // reset calendar view
+      if (document.querySelector('#screen-timeline.active')) {
+        await TimelineScreen.render(App.selectedDate);
       }
     });
   },

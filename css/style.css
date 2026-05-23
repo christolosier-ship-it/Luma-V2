@@ -3,20 +3,19 @@
    Palette : fond crème, vert sauge, blanc cassé, tons doux
    ===================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Fraunces:ital,wght@0,300;0,500;1,300&display=swap');
 
 :root {
-  --bg:          #f5f0eb;
+  --bg:          #F4FAFF;
   --bg-card:     #ffffff;
   --bg-card2:    #faf7f4;
-  --sage:        #7a9e87;
+  --sage: #2494F2;
   --sage-light:  #c8ddd0;
-  --sage-dark:   #4f7a62;
-  --peach:       #e8a98a;
-  --peach-light: #f5ddd0;
+  --sage-dark: #1266C3;
+  --peach: #31C7C4;
+  --peach-light: #EAFBFA;
   --lavender:    #b0a8cc;
-  --text:        #3a3530;
-  --text-soft:   #7a7268;
+  --text: #102033;
+  --text-soft: #6B7A90;
   --text-light:  #b0aa9f;
   --border:      #e8e0d8;
   --shadow:      0 2px 12px rgba(58,53,48,0.08);
