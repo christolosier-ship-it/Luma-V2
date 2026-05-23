@@ -1,4 +1,4 @@
-const CACHE_NAME = 'luma-v3.0.0';
+const CACHE_NAME = 'luma-v3.1.0';
 const ASSETS = ['./','./index.html','./css/style.css','./js/db.js','./js/utils.js','./js/intakes.js','./js/today.js','./js/timeline.js','./js/journal.js','./js/medications.js','./js/settings.js','./js/modal.js','./js/app.js','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install', (e) => e.waitUntil(caches.open(CACHE_NAME).then(async c => {for (const a of ASSETS) try {await c.add(a);} catch(_) {}}).then(()=>self.skipWaiting())));
 self.addEventListener('activate', (e) => e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));

@@ -1,5 +1,5 @@
 const DB_NAME = 'luma_db';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 const STORES = {
   PROTOCOLS: 'protocols',
@@ -94,6 +94,7 @@ const DB = {
   async savePhase(phase) { return putItem(STORES.PHASES, phase); },
   async deletePhasesByMedication(medId) { for (const p of await getAll(STORES.PHASES)) if (p.medicationId === medId) await deleteItem(STORES.PHASES,p.id); },
   async getAllIntakeActions() { return getAll(STORES.INTAKE_ACTIONS); },
+  async getIntakeAction(key){return new Promise((resolve,reject)=>{const r=tx(STORES.INTAKE_ACTIONS).get(key);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error);});},
   async saveIntakeAction(a){ return putItem(STORES.INTAKE_ACTIONS,a); },
   async deleteIntakeAction(key){ return deleteItem(STORES.INTAKE_ACTIONS,key); },
   async saveIntakeEvent(e){ return putItem(STORES.INTAKE_EVENTS,e); },
@@ -102,12 +103,14 @@ const DB = {
   async saveDailyNote(n){ return putItem(STORES.DAILY_NOTES,n); },
   async getProtocolEvents(){ return getAll(STORES.PROTOCOL_EVENTS); },
   async saveProtocolEvent(ev){ return putItem(STORES.PROTOCOL_EVENTS,ev); },
+  async deleteProtocolEvent(id){ return deleteItem(STORES.PROTOCOL_EVENTS,id); },
+  async toggleProtocolEventCompleted(id){ const all=await getAll(STORES.PROTOCOL_EVENTS); const ev=all.find(e=>e.id===id); if(!ev) return; ev.completed=!ev.completed; ev.updatedAt=new Date().toISOString(); await putItem(STORES.PROTOCOL_EVENTS,ev); },
 
   async exportAll() {
     const [protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents] = await Promise.all([
       getAll(STORES.PROTOCOLS),getAll(STORES.MEDICATIONS),getAll(STORES.PHASES),getAll(STORES.INTAKE_ACTIONS),getAll(STORES.INTAKE_EVENTS),getAll(STORES.DAILY_NOTES),getAll(STORES.PROTOCOL_EVENTS)
     ]);
-    return { app:'Luma', version:'3.0', exportedAt:new Date().toISOString(), protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents, settings:{} };
+    return { app:'Luma', version:'3.1', exportedAt:new Date().toISOString(), protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents, settings:{} };
   },
   validateImportData(data){
     if (!data || typeof data !== 'object') return {ok:false,error:'Fichier JSON invalide'};

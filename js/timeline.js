@@ -17,11 +17,7 @@ const TimelineScreen = {
       this._viewMonth = selDate.getMonth();
     }
 
-    const [medications, phases, allActions] = await Promise.all([
-      DB.getMedications(),
-      DB.getPhases(),
-      DB.getAllIntakeActions(),
-    ]);
+    const [medications, phases, allActions, protocolEvents] = await Promise.all([DB.getMedications(),DB.getPhases(),DB.getAllIntakeActions(),DB.getProtocolEvents()]);
 
     const datesWithIntakes = Intakes.getDatesWithIntakesInMonth(
       medications, phases, this._viewYear, this._viewMonth
@@ -40,7 +36,7 @@ const TimelineScreen = {
         Prises du ${capitalize(formatDateFR(selectedDateStr))}
       </div>
       <div id="tl-intakes-list">
-        ${await this._intakesListHtml(medications, phases, actionsMap, selectedDateStr)}
+        ${await this._intakesListHtml(medications, phases, actionsMap, selectedDateStr, protocolEvents)}
       </div>
     `;
 
@@ -143,7 +139,7 @@ const TimelineScreen = {
     `;
   },
 
-  async _intakesListHtml(medications, phases, actionsMap, dateStr) {
+  async _intakesListHtml(medications, phases, actionsMap, dateStr, protocolEvents) {
     const events = Intakes.generateForDate(medications, phases, dateStr);
     const intakes = Intakes.mergeWithActions(events, actionsMap);
 
@@ -151,6 +147,7 @@ const TimelineScreen = {
       return `<div class="empty-state"><div class="empty-icon">✨</div><p>Aucune prise ce jour.</p></div>`;
     }
 
+    const dayEvents = protocolEvents.filter(e=>e.date===dateStr);
     return intakes.map(i => {
       const statusLabel = { taken: '✓ Pris', skipped: '⊘ Passé', snoozed: '⏱ Reporté', pending: '—' }[i.status] || '—';
       const statusColor = { taken: 'var(--sage)', skipped: 'var(--text-light)', snoozed: 'var(--peach)', pending: 'var(--border)' }[i.status];
@@ -164,6 +161,6 @@ const TimelineScreen = {
           <div style="font-size:0.82rem;color:var(--text-soft);">${escHtml(i.dosage)}${i.medType ? ' · ' + escHtml(i.medType) : ''}</div>
         </div>
       `;
-    }).join('');
+    }).join('') + dayEvents.map(e=>`<div class="card card-sm" style="border-left:4px solid var(--peach);"><div><strong>${escHtml(e.time||'—:—')} — ${escHtml(e.title)}</strong></div><div style="font-size:.82rem;color:var(--text-soft);">${escHtml(e.type||'autre')} · ${e.completed?'terminé':'à faire'}</div></div>`).join('');
   },
 };
