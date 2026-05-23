@@ -9,7 +9,7 @@ const App = {
   currentScreen: 'today',
 
   async init() {
-    await DB.init();
+    try { await DB.init(); } catch (err) { console.error('DB init failed', err); showToast("Erreur base locale: redémarrez l'application"); return; }
 
     // Hide splash after short delay
     setTimeout(() => {
@@ -75,8 +75,9 @@ document.addEventListener('DOMContentLoaded', () => App.init());
 // Register service worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {
-      // SW registration failed silently — offline still works via cache
+    navigator.serviceWorker.register('./sw.js').catch((err) => {
+      console.error('Service worker registration failed', err);
+      showToast('Mode hors ligne partiel: service worker indisponible');
     });
   });
 }

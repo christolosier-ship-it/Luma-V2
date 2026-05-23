@@ -78,3 +78,24 @@ function showToast(msg, duration = 2200) {
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
+
+
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function isValidTimeHHMM(value) {
+  return /^([01]\d|2[0-3]):([0-5]\d)$/.test(String(value || ''));
+}
+
+function normalizeTimes(times) {
+  const clean = (Array.isArray(times) ? times : [])
+    .map(t => String(t || '').trim())
+    .filter(isValidTimeHHMM);
+  return [...new Set(clean)].sort();
+}

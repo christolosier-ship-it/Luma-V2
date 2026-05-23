@@ -126,16 +126,43 @@ const DB = {
       DB.getPhases(),
       DB.getAllIntakeActions(),
     ]);
-    return { medications, phases, intakeActions, exportedAt: new Date().toISOString(), version: 1 };
+    return { app: 'Luma', version: '2.1', exportedAt: new Date().toISOString(), medications, phases, intakeActions };
+  },
+
+  validateImportData(data) {
+    if (!data || typeof data !== 'object') return { ok: false, error: 'Fichier JSON invalide' };
+    const medications = data.medications || [];
+    const phases = data.phases || [];
+    const intakeActions = data.intakeActions || [];
+    if (!Array.isArray(medications) || !Array.isArray(phases) || !Array.isArray(intakeActions)) return { ok: false, error: 'Structure JSON invalide' };
+    const medIds = new Set();
+    for (const m of medications) { if (!m || !m.id || !m.name) return { ok: false, error: 'Médicament incomplet' }; medIds.add(m.id); }
+    for (const p of phases) {
+      if (!p || !p.id || !p.medicationId || !p.startDate) return { ok: false, error: 'Phase incomplète' };
+      if (!medIds.has(p.medicationId)) return { ok: false, error: 'Phase liée à un médicament inexistant' };
+      if (p.endDate && p.endDate < p.startDate) return { ok: false, error: 'Date de phase invalide' };
+      if (!Array.isArray(p.times) || p.times.some(t => !isValidTimeHHMM(t))) return { ok: false, error: 'Heures de phase invalides' };
+    }
+    return { ok: true };
   },
 
   async importAll(data) {
-    await clearStore(STORES.MEDICATIONS);
-    await clearStore(STORES.PHASES);
-    await clearStore(STORES.INTAKE_ACTIONS);
-    for (const m of (data.medications || [])) await putItem(STORES.MEDICATIONS, m);
-    for (const p of (data.phases || [])) await putItem(STORES.PHASES, p);
-    for (const a of (data.intakeActions || [])) await putItem(STORES.INTAKE_ACTIONS, a);
+    const backup = await DB.exportAll();
+    const validation = DB.validateImportData(data);
+    if (!validation.ok) throw new Error(validation.error);
+    try {
+      await clearStore(STORES.MEDICATIONS); await clearStore(STORES.PHASES); await clearStore(STORES.INTAKE_ACTIONS);
+      for (const m of (data.medications || [])) await putItem(STORES.MEDICATIONS, m);
+      for (const p of (data.phases || [])) await putItem(STORES.PHASES, p);
+      for (const a of (data.intakeActions || [])) await putItem(STORES.INTAKE_ACTIONS, a);
+    } catch (err) {
+      console.error('Import transaction failed, restoring backup', err);
+      await clearStore(STORES.MEDICATIONS); await clearStore(STORES.PHASES); await clearStore(STORES.INTAKE_ACTIONS);
+      for (const m of backup.medications || []) await putItem(STORES.MEDICATIONS, m);
+      for (const p of backup.phases || []) await putItem(STORES.PHASES, p);
+      for (const a of backup.intakeActions || []) await putItem(STORES.INTAKE_ACTIONS, a);
+      throw err;
+    }
   },
 
   async resetAll() {

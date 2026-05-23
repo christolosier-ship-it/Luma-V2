@@ -94,3 +94,29 @@ const Intakes = {
     return dates;
   },
 };
+
+
+Intakes.getVisualStatus = function(intake, dateStr) {
+  if (intake.status !== 'pending') return intake.status;
+  if (dateStr !== todayStr()) return 'pending';
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const [h, m] = intake.displayTime.split(':').map(Number);
+  return (h * 60 + m) < nowMinutes ? 'late' : 'pending';
+};
+
+Intakes.sortForToday = function(intakes, dateStr) {
+  const rank = (intake) => {
+    const v = Intakes.getVisualStatus(intake, dateStr);
+    if (v === 'late') return 0;
+    if (intake.status === 'snoozed') return 1;
+    if (intake.status === 'pending') return 2;
+    if (intake.status === 'taken') return 3;
+    return 4;
+  };
+  return [...intakes].sort((a, b) => {
+    const r = rank(a) - rank(b);
+    if (r !== 0) return r;
+    return a.displayTime.localeCompare(b.displayTime);
+  });
+};

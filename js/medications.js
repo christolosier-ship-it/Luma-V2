@@ -62,8 +62,8 @@ const MedicationsScreen = {
           return `
             <div class="med-phase">
               <div class="med-phase-dates">${startFR} → ${endFR}</div>
-              <div class="med-phase-detail">${p.dosage || '—'} · ${times}</div>
-              ${p.notes ? `<div class="med-phase-detail" style="font-style:italic;">${p.notes}</div>` : ''}
+              <div class="med-phase-detail">${escHtml(p.dosage || "—")} · ${escHtml(times)}</div>
+              ${p.notes ? `<div class="med-phase-detail" style="font-style:italic;">${escHtml(p.notes)}</div>` : ''}
             </div>
           `;
         }).join('');
@@ -72,8 +72,8 @@ const MedicationsScreen = {
       <div class="med-card">
         <div class="med-card-header">
           <div class="med-info">
-            <div class="med-name">${med.name}</div>
-            <div class="med-type">${med.type || ''} · ${phases.length} phase${phases.length !== 1 ? 's' : ''}</div>
+            <div class="med-name">${escHtml(med.name)}</div>
+            <div class="med-type">${escHtml(med.type || "")} · ${phases.length} phase${phases.length !== 1 ? 's' : ''}</div>
           </div>
           <div class="med-actions-row">
             <button class="btn-icon btn-edit" data-med-id="${med.id}" title="Modifier">✎</button>
@@ -237,20 +237,18 @@ const MedicationsScreen = {
     document.getElementById('modal-save-btn').addEventListener('click', async () => {
       MedicationsScreen._syncFormToData(formData);
 
-      if (!formData.name.trim()) { showToast('Le nom est obligatoire'); return; }
-      for (const p of formData.phases) {
-        if (!p.startDate) { showToast('Chaque phase doit avoir une date de début'); return; }
-      }
+      const validationError = MedicationsScreen._validateForm(formData);
+      if (validationError) { showToast(validationError); return; }
 
       const med = { id: formData.id, name: formData.name.trim(), type: formData.type.trim() };
-      await DB.saveMedication(med);
-
-      // Delete old phases if editing
-      if (isEdit) {
-        await DB.deletePhasesByMedication(med.id);
-      }
-      for (const p of formData.phases) {
-        await DB.savePhase({ ...p, medicationId: med.id });
+      try {
+        await DB.saveMedication(med);
+        if (isEdit) await DB.deletePhasesByMedication(med.id);
+        for (const p of formData.phases) await DB.savePhase({ ...p, medicationId: med.id });
+      } catch (err) {
+        console.error('Medication save failed', err);
+        showToast('Erreur de sauvegarde du traitement');
+        return;
       }
 
       Modal.hide();
@@ -265,6 +263,26 @@ const MedicationsScreen = {
     });
   },
 
+
+
+  _validateForm(formData) {
+    if (!formData.name.trim()) return 'Le nom est obligatoire';
+    if (!formData.phases.length) return 'Au moins une phase est obligatoire';
+    const ranges = [];
+    for (const p of formData.phases) {
+      if (!p.startDate) return 'Chaque phase doit avoir une date de début';
+      if (p.endDate && p.endDate < p.startDate) return 'La date de fin doit être après le début';
+      p.times = normalizeTimes(p.times);
+      if (!p.times.length) return 'Chaque phase doit avoir au moins une heure';
+      if ((p.times || []).some(t => !isValidTimeHHMM(t))) return "Format d'heure invalide (HH:MM)";
+      ranges.push([p.startDate, p.endDate || '9999-12-31']);
+    }
+    ranges.sort((a,b)=>a[0].localeCompare(b[0]));
+    for (let i=1;i<ranges.length;i++) {
+      if (ranges[i][0] <= ranges[i-1][1]) return 'Phases incompatibles: chevauchement détecté';
+    }
+    return null;
+  },
   _syncFormToData(formData) {
     // Read top-level fields
     const nameEl = document.getElementById('f-med-name');
@@ -342,10 +360,3 @@ const MedicationsScreen = {
   },
 };
 
-function escHtml(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}

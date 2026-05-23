@@ -160,8 +160,8 @@ const CalendarScreen = {
             <span style="font-weight:600;color:var(--sage-dark);">${i.displayTime}</span>
             <span style="font-size:0.78rem;color:var(--text-soft);">${statusLabel}</span>
           </div>
-          <div style="font-weight:600;margin-top:4px;">${i.medName}</div>
-          <div style="font-size:0.82rem;color:var(--text-soft);">${i.dosage}${i.medType ? ' · ' + i.medType : ''}</div>
+          <div style="font-weight:600;margin-top:4px;">${escHtml(i.medName)}</div>
+          <div style="font-size:0.82rem;color:var(--text-soft);">${escHtml(i.dosage)}${i.medType ? ' · ' + escHtml(i.medType) : ''}</div>
         </div>
       `;
     }).join('');

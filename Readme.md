@@ -8,7 +8,7 @@
 
 <br/>
 
-![Version](https://img.shields.io/badge/version-1.0-7a9e87?style=flat-square)
+![Version](https://img.shields.io/badge/version-2.1-7a9e87?style=flat-square)
 ![PWA](https://img.shields.io/badge/PWA-installable-4f7a62?style=flat-square)
 ![Offline](https://img.shields.io/badge/offline-ready-c8ddd0?style=flat-square&labelColor=4f7a62)
 ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-f5f0eb?style=flat-square&labelColor=7a7268)
@@ -43,7 +43,8 @@ L’interface est volontairement simple, apaisante et lisible — des gros bouto
 - Actions en un tap :
   - **✓ Pris** — enregistre la prise avec horodatage
   - **⊘ Passer** — marque la prise comme ignorée
-  - **+15 min** — reporte la prise de 15 minutes
+  - **+15 min** — reporte la prise de 15 minutes (cumulable)
+  - **Annuler** — remet une prise à l’état prévu
 
 ### Calendrier
 
