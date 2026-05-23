@@ -1,4 +1,4 @@
-# TESTS MANUELS Luma V3.1.1
+# TESTS MANUELS Luma V3.2
 
 ## Découplage Aujourd’hui / Timeline
 - [ ] En Timeline, sélectionner une date future (J+10).

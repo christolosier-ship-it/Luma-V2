@@ -35,7 +35,7 @@ const TimelineScreen = {
     Modal.show(c);
     document.getElementById('modal-close-btn').onclick=()=>Modal.hide();
     document.getElementById('note-cancel').onclick=()=>Modal.hide();
-    document.getElementById('note-save').onclick=async()=>{const chosenDate=document.getElementById('note-date').value; const content=document.getElementById('note-text').value.trim(); if(!chosenDate) return showToast('Date obligatoire'); if(!content) return showToast('Note vide'); const protocolId=TimelineScreen.selectedProtocolId==='all'?'':TimelineScreen.selectedProtocolId; await DB.saveDailyNote({id:current?.id||uid(),date:chosenDate,protocolId,freeNote:content,updatedAt:new Date().toISOString(),createdAt:current?.createdAt||new Date().toISOString()}); Modal.hide(); showToast('Note enregistrée au journal'); await TimelineScreen.render(); await JournalScreen.render();};
+    document.getElementById('note-save').onclick=async()=>{const chosenDate=document.getElementById('note-date').value; const content=document.getElementById('note-text').value.trim(); if(!chosenDate) return showToast('Date obligatoire'); if(!content) return showToast('Note vide'); const protocolId = current?.protocolId ?? (TimelineScreen.selectedProtocolId==='all' ? '' : TimelineScreen.selectedProtocolId); await DB.saveDailyNote({id:current?.id||uid(),date:chosenDate,protocolId,freeNote:content,updatedAt:new Date().toISOString(),createdAt:current?.createdAt||new Date().toISOString()}); Modal.hide(); showToast('Note enregistrée au journal'); await TimelineScreen.render(); await JournalScreen.render();};
   },
   // Ouvre le formulaire de création/modification d'événement protocolaire.
   openEventForm(ev, protocols){

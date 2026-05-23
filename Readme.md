@@ -8,7 +8,7 @@
 
 <br/>
 
-![Version](https://img.shields.io/badge/version-3.1-7a9e87?style=flat-square)
+![Version](https://img.shields.io/badge/version-3.2-7a9e87?style=flat-square)
 ![PWA](https://img.shields.io/badge/PWA-installable-4f7a62?style=flat-square)
 ![Offline](https://img.shields.io/badge/offline-ready-c8ddd0?style=flat-square&labelColor=4f7a62)
 ![Vanilla JS](https://img.shields.io/badge/vanilla-JS-f5f0eb?style=flat-square&labelColor=7a7268)
@@ -28,7 +28,7 @@
 
 ## ✨ Présentation
 
-**Luma** est une application web progressive (PWA) pensée pour le suivi de traitements médicaux sur téléphone mobile. Elle fonctionne entièrement **hors ligne**, sans compte, sans serveur, sans cloud. Vos données restent sur votre téléphone.
+**Luma** (V3.2) est une application web progressive (PWA) pensée pour le suivi de traitements médicaux sur téléphone mobile. Elle fonctionne entièrement **hors ligne**, sans compte, sans serveur, sans cloud. Vos données restent sur votre téléphone.
 
 L’interface est volontairement simple, apaisante et lisible — des gros boutons, des couleurs douces, aucune surcharge visuelle.
 
@@ -113,6 +113,12 @@ Les données sont séparées en trois entités dans IndexedDB :
 > Les prises ne sont **jamais stockées en doublon**. Elles sont générées dynamiquement à partir des phases, puis enrichies avec les actions persistées. La clé d’une action est `medId|phaseId|YYYY-MM-DD|HH:MM`.
 
 -----
+
+## 🆕 Nouveautés V3.2
+
+- Correction de l'icône d'installation iOS/écran d'accueil (`apple-touch-icon` + `icon`).
+- Correction de la sauvegarde des notes : en mode **Tous protocoles**, l'édition d'une note conserve désormais son `protocolId` d'origine.
+- Mise à jour des chaînes de version applicative et export JSON (`3.2`).
 
 ## 🚀 Installation & déploiement
 
