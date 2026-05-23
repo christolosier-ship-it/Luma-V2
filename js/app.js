@@ -1,5 +1,7 @@
 const App = {
+  // Écran actuellement affiché.
   currentScreen: 'today',
+  // Initialise la base et les écrans.
   async init() {
     try { await DB.init(); } catch (err) { console.error(err); showToast("Erreur base locale"); return; }
     setTimeout(() => {
@@ -14,7 +16,9 @@ const App = {
     SettingsScreen.render();
     App.updateHeaderDate();
   },
+  // Lie les boutons de navigation du bas.
   _bindNav() { document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', async () => App.navigateTo(btn.dataset.screen))); },
+  // Change d'écran et déclenche son rendu.
   async navigateTo(screenName) {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.screen === screenName));
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -27,6 +31,7 @@ const App = {
     else if (screenName === 'settings') SettingsScreen.render();
     App.updateHeaderDate();
   },
+  // Met à jour la date visible dans l'entête.
   updateHeaderDate() {
     const el = document.getElementById('header-date'); if (!el) return;
     if (App.currentScreen === 'timeline') el.textContent = capitalize(formatDateShortFR(TimelineScreen.selectedDate));

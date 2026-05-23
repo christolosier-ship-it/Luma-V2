@@ -99,3 +99,16 @@ function normalizeTimes(times) {
     .filter(isValidTimeHHMM);
   return [...new Set(clean)].sort();
 }
+
+/** Traduit un statut technique en libellé lisible en français. */
+function statusLabelFR(status) {
+  const labels = {
+    taken: 'Pris',
+    skipped: 'Passé',
+    snoozed: 'Reporté',
+    pending: 'En attente',
+    late: 'En retard',
+    completed: 'Terminé',
+  };
+  return labels[status] || String(status || 'Inconnu');
+}

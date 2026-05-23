@@ -9,9 +9,9 @@
     <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <div id="splash"><div class="splash-logo"><div style="width:88px;height:88px;border-radius:22px;background:linear-gradient(135deg,#b5ecff,#2a86ff);margin:0 auto 8px;"></div><h1>Luma V3.1</h1><p>Protocole & Journal</p></div></div>
+  <div id="splash"><div class="splash-logo"><img src="icons/icone_192x192.png" alt="Logo Luma" style="width:88px;height:88px;border-radius:22px;object-fit:cover;margin:0 auto 8px;display:block;"><h1>Luma V3.1</h1><p>Protocole & Journal</p></div></div>
   <div id="app" class="hidden">
-    <header id="app-header"><div class="header-inner"><div class="header-logo">Luma</div><div class="header-date" id="header-date"></div></div></header>
+    <header id="app-header"><div class="header-inner"><div class="header-logo" style="display:flex;align-items:center;gap:8px;"><img src="icons/icone_192x192.png" alt="Logo" style="width:24px;height:24px;border-radius:6px;object-fit:cover;">Luma</div><div class="header-date" id="header-date"></div></div></header>
     <main id="screens">
       <section id="screen-today" class="screen active"></section>
       <section id="screen-timeline" class="screen"></section>
@@ -21,7 +21,7 @@
     </main>
     <nav id="bottom-nav">
       <button class="nav-btn active" data-screen="today"><span class="nav-icon">☀️</span><span class="nav-label">Aujourd’hui</span></button>
-      <button class="nav-btn" data-screen="timeline"><span class="nav-icon">🕒</span><span class="nav-label">Timeline</span></button>
+      <button class="nav-btn" data-screen="timeline"><span class="nav-icon">🕒</span><span class="nav-label">Chronologie</span></button>
       <button class="nav-btn" data-screen="journal"><span class="nav-icon">🧾</span><span class="nav-label">Journal</span></button>
       <button class="nav-btn" data-screen="medications"><span class="nav-icon">💊</span><span class="nav-label">Traitements</span></button>
       <button class="nav-btn" data-screen="settings"><span class="nav-icon">⚙️</span><span class="nav-label">Réglages</span></button>

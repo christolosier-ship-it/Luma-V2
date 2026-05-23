@@ -9,5 +9,18 @@
   "background_color": "#F4FAFF",
   "theme_color": "#2494F2",
   "lang": "fr",
-  "icons": []
+  "icons": [
+    {
+      "src": "icons/icone_192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icone_512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }
