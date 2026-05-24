@@ -51,11 +51,21 @@ const TimelineScreen = {
     const items = [];
     for (const i of dayIntakes){ const v=Intakes.getVisualStatus(i,dateStr); items.push(`<div class="timeline-item"><div class="timeline-item-card status-${escHtml(v)}"><div class="timeline-item-time">${escHtml(i.displayTime)}</div><div class="timeline-item-title">${escHtml(i.medName)}</div><div class="timeline-item-detail">${escHtml(i.dosage)} · ${escHtml(statusLabelFR(v))}</div></div></div>`); }
     for (const e of dayEvents){ items.push(`<div class="timeline-item"><div class="timeline-item-card status-${e.completed?'completed':'event'}"><div class="timeline-item-time">${escHtml(e.time||'—:—')}</div><div class="timeline-item-title">${escHtml(e.title)}</div><div class="timeline-item-detail">${escHtml(e.type||'autre')} · ${e.completed?'terminé':'à faire'}</div><div style="margin-top:6px;display:flex;gap:6px;"><button class="btn-settings" data-ev-edit="${escHtml(e.id)}">Modifier</button><button class="btn-settings" data-ev-toggle="${escHtml(e.id)}">${e.completed?'Réouvrir':'Terminer'}</button><button class="btn-settings" data-ev-del="${escHtml(e.id)}">Supprimer</button></div></div></div>`); }
-    if (note?.freeNote) items.push(`<div class="timeline-item"><div class="timeline-item-card status-event"><div class="timeline-item-time">Note libre</div><div class="timeline-item-detail">${escHtml(note.freeNote)}</div><div style="margin-top:6px;"><button class="btn-settings" data-note-edit="${escHtml(dateStr)}">Modifier</button></div></div></div>`);
+    if (note?.freeNote || note?.symptoms) {
+      const symptomText = TimelineScreen._symptomsSummary(note);
+      items.push(`<div class="timeline-item"><div class="timeline-item-card status-event"><div class="timeline-item-time">Note libre</div><div class="timeline-item-detail">${escHtml(note.freeNote||'')}</div>${symptomText?`<div class="timeline-item-detail" style="margin-top:4px;">Symptômes: ${escHtml(symptomText)}</div>`:''}<div style="margin-top:6px;"><button class="btn-settings" data-note-edit="${escHtml(dateStr)}">Modifier</button></div></div></div>`);
+    }
     const d=fromDateStr(dateStr); const label=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
     const activeP = protocols.find(p=>p.id===TimelineScreen.selectedProtocolId); let j=''; if(activeP?.startDate){ const diff=Math.floor((d-fromDateStr(activeP.startDate))/86400000)+1; if(diff>0) j=` · J${diff}`; }
     return `<section class="timeline-day ${TimelineScreen.selectedDate===dateStr?'selected':''}"><div class="timeline-rail"></div><div class="timeline-dot"></div><div class="timeline-day-content"><div class="timeline-day-header" data-date="${dateStr}">${capitalize(label)}${dateStr===todayStr()?' · Aujourd’hui':''}${j}</div>${items.length?items.join(''):'<div class="timeline-item"><div class="timeline-item-card">Aucune action</div></div>'}</div></section>`;
   },
+
+  _symptomsSummary(note){
+    if (!note?.symptoms) return '';
+    const labels={nausea:'Nausée',fatigue:'Fatigue',pain:'Douleur',headache:'Maux de tête',dizziness:'Vertiges',mood:'Humeur',sleep:'Sommeil',bleeding:'Saignement',other:note.otherSymptomLabel||'Autre'};
+    return Object.entries(labels).map(([key,label])=>`${label} ${Number(note.symptoms[key]??0)}`).join(' · ');
+  },
+
   // Vérifie si une prise appartient au protocole sélectionné.
   _allowProtocol(medId, medications, protocols){ const med=medications.find(m=>m.id===medId); if(!med) return false; if(TimelineScreen.selectedProtocolId!=='all' && med.protocolId!==TimelineScreen.selectedProtocolId) return false; const p=protocols.find(x=>x.id===med.protocolId); return !p || p.status!=='archived'; },
   // Vérifie si un événement appartient au protocole sélectionné.

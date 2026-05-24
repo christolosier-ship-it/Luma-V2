@@ -1,218 +1,66 @@
-<div align="center">
+# 🌿 Luma V3.3
 
-<br/>
+Luma est une PWA mobile (offline-first) pour suivre les traitements, les événements protocole et le journal quotidien.
 
-# 🌿 Luma
+## Nouveautés V3.3
 
-### Suivi de traitements médicaux · PWA mobile · Offline-first
+- Gestion multi-protocoles (actif, en pause, terminé, archivé).
+- Timeline enrichie (prises, événements, notes libres).
+- Notes du jour avec symptômes notés de **0 à 3**.
+- Export / import JSON consolidé pour toutes les entités.
+- Export CSV et rapport imprimable depuis le Journal.
 
-<br/>
+## Fonctionnalités principales
 
-![Version](https://img.shields.io/badge/version-3.3-7a9e87?style=flat-square)
-![PWA](https://img.shields.io/badge/PWA-installable-4f7a62?style=flat-square)
-![Offline](https://img.shields.io/badge/offline-ready-c8ddd0?style=flat-square&labelColor=4f7a62)
-![Vanilla JS](https://img.shields.io/badge/vanilla-JS-f5f0eb?style=flat-square&labelColor=7a7268)
-![No deps](https://img.shields.io/badge/dépendances-aucune-e8a98a?style=flat-square)
+### 1) Écran “Aujourd’hui”
+- Liste des prises prévues sur la date sélectionnée.
+- Actions rapides: pris, passer, reporter (+15 min), annuler.
+- Bloc “Note du jour”:
+  - Note libre.
+  - Suivi des symptômes avec échelle:
+    - 0 = aucun
+    - 1 = léger
+    - 2 = modéré
+    - 3 = fort
 
-<br/>
+### 2) Timeline
+- Affichage chronologique des prises, événements et notes.
+- Filtres par protocole.
+- Les symptômes de la note du jour sont visibles dans la timeline avec la note libre.
 
+### 3) Journal
+- Consultation sur 7/30/90/180 jours ou période personnalisée.
+- Statistiques d’observance.
+- Export CSV v3.3.
+- Rapport imprimable.
 
-> Une application mobile douce et simple pour suivre ses traitements au quotidien.  
-> Conçue pour les contextes médicaux qui changent souvent.
+### 4) Traitements & Protocoles
+- CRUD des médicaments et des phases.
+- Gestion des protocoles et de leurs événements.
 
-<br/>
+### 5) Réglages
+- Export JSON complet.
+- Import JSON validé.
+- Réinitialisation totale des données.
 
-</div>
+## Stack technique
 
------
+- HTML/CSS/JavaScript (vanilla)
+- IndexedDB (stockage local)
+- Service Worker + Manifest (PWA installable)
 
-## ✨ Présentation
+## Données locales
 
-**Luma** (V3.3) est une application web progressive (PWA) pensée pour le suivi de traitements médicaux sur téléphone mobile. Elle fonctionne entièrement **hors ligne**, sans compte, sans serveur, sans cloud. Vos données restent sur votre téléphone.
+Toutes les données restent sur l’appareil utilisateur (pas de backend).
 
-L’interface est volontairement simple, apaisante et lisible — des gros boutons, des couleurs douces, aucune surcharge visuelle.
-
------
-
-## 📱 Fonctionnalités
-
-### Aujourd’hui
-
-- Vue des prises du jour sélectionné
-- Pour chaque prise : heure, médicament, dosage, type, statut
-- Actions en un tap :
-  - **✓ Pris** — enregistre la prise avec horodatage
-  - **⊘ Passer** — marque la prise comme ignorée
-  - **+15 min** — reporte la prise de 15 minutes (cumulable)
-  - **Annuler** — remet une prise à l’état prévu
-
-### Calendrier
-
-- Vue mensuelle navigable (mois précédent / suivant)
-- Sélection libre de n’importe quel jour
-- Indicateur visuel sur les jours avec des prises prévues
-- L’écran Aujourd’hui suit automatiquement le jour sélectionné
-
-### Traitements
-
-- Liste de tous les médicaments configurés
-- Ajout, modification et suppression de chaque traitement
-- **Système de phases** : chaque médicament peut avoir plusieurs phases avec :
-  - Date de début et date de fin
-  - Dosage
-  - Une ou plusieurs heures de prise
-  - Notes libres
-- Idéal pour les protocoles qui changent régulièrement
-
-### Réglages
-
-- **Export JSON** — sauvegarde complète de vos données
-- **Import JSON** — restauration depuis une sauvegarde
-- **Réinitialisation** — remise à zéro avec confirmation
-
------
-
-## 🏗️ Architecture
-
-```
-luma/
-├── index.html          # Shell HTML, navigation, structure
-├── manifest.json       # Configuration PWA
-├── sw.js               # Service Worker (cache offline)
-│
-├── css/
-│   └── style.css       # Design complet, variables CSS, mobile-first
-│
-├── js/
-│   ├── db.js           # Couche IndexedDB (medications, phases, actions)
-│   ├── utils.js        # Helpers : dates, toast, uid, formatage
-│   ├── intakes.js      # Moteur de génération des prises depuis les phases
-│   ├── today.js        # Écran Aujourd'hui
-│   ├── calendar.js     # Calendrier mensuel navigable
-│   ├── medications.js  # CRUD complet médicaments + phases
-│   ├── settings.js     # Export / Import / Reset
-│   ├── modal.js        # Système de modales bottom-sheet
-│   └── app.js          # Contrôleur principal, navigation, boot
-│
-└── icons/
-    ├── icon-192.png
-    └── icon-512.png
-```
-
-### Modèle de données
-
-Les données sont séparées en trois entités dans IndexedDB :
-
-|Store          |Contenu                                                 |
-|---------------|--------------------------------------------------------|
-|`medications`  |Nom, type/forme du médicament                           |
-|`phases`       |Période, dosage, heures, notes — liées à un médicament  |
-|`intakeActions`|Actions utilisateur (pris/passé/reporté) — clé composite|
-
-
-> Les prises ne sont **jamais stockées en doublon**. Elles sont générées dynamiquement à partir des phases, puis enrichies avec les actions persistées. La clé d’une action est `medId|phaseId|YYYY-MM-DD|HH:MM`.
-
------
-
-## 🆕 Nouveautés V3.3
-
-- Correction de l'icône d'installation iOS/écran d'accueil (`apple-touch-icon` + `icon`).
-- Correction de la sauvegarde des notes : en mode **Tous protocoles**, l'édition d'une note conserve désormais son `protocolId` d'origine.
-- Mise à jour des chaînes de version applicative et export JSON (`3.3`).
-
-## 🚀 Installation & déploiement
-
-### Lancer en local
+## Lancement local
 
 ```bash
-# Cloner le repo
-git clone https://github.com/ton-pseudo/luma.git
-cd luma
-
-# Lancer un serveur local (nécessaire pour le Service Worker)
-npx serve .
-# ou
 python3 -m http.server 8080
 ```
 
-Ouvrir `http://localhost:8080` dans votre navigateur.
+Puis ouvrir: `http://localhost:8080`
 
-### Déployer sur GitHub Pages
+## Version
 
-1. Pousser le code sur votre repo GitHub
-1. Aller dans **Settings → Pages → Source → Deploy from branch → `main` / `root`**
-1. L’app sera accessible à `https://ton-pseudo.github.io/luma/`
-
-> ⚠️ **Important pour GitHub Pages** : le `manifest.json` doit utiliser des chemins relatifs (`./`) et non absolus (`/`) pour que l’installation PWA fonctionne correctement depuis un sous-répertoire.
-
-### Installer sur iPhone (Safari)
-
-1. Ouvrir l’app dans Safari
-1. Appuyer sur l’icône **Partager** (carré avec flèche)
-1. Choisir **Sur l’écran d’accueil**
-1. Confirmer → Luma s’installe comme une app native
-
------
-
-## 🎨 Design
-
-L’interface suit une esthétique **douce et médicale, sans être clinique**.
-
-|Variable      |Valeur   |Usage             |
-|--------------|---------|------------------|
-|`--bg`        |`#f5f0eb`|Fond général crème|
-|`--sage`      |`#7a9e87`|Couleur principale|
-|`--sage-dark` |`#4f7a62`|Accents, CTA      |
-|`--sage-light`|`#c8ddd0`|Badges, chips     |
-|`--peach`     |`#e8a98a`|Alerte, snooze    |
-|`--text`      |`#3a3530`|Texte principal   |
-|`--text-soft` |`#7a7268`|Texte secondaire  |
-
-Polices : **Fraunces** (titres, serif doux) + **DM Sans** (corps, lisible)
-
------
-
-## 🔒 Vie privée
-
-- ✅ Aucune donnée envoyée sur un serveur
-- ✅ Aucun compte requis
-- ✅ Aucun cookie de tracking
-- ✅ Toutes les données stockées localement via **IndexedDB**
-- ✅ Export/Import JSON pour la portabilité complète
-
------
-
-## 🧱 Stack technique
-
-|Technologie            |Usage                                 |
-|-----------------------|--------------------------------------|
-|HTML / CSS / JS vanilla|Interface et logique — aucun framework|
-|IndexedDB              |Persistance locale des données        |
-|Service Worker         |Cache offline, installation PWA       |
-|Web App Manifest       |Installabilité, icônes, thème         |
-
-Aucune dépendance npm. Aucun bundler. Aucun build step.
-
------
-
-## 📋 Roadmap envisagée
-
-- [ ] Notifications locales (rappels de prise)
-- [ ] Vue hebdomadaire dans le calendrier
-- [ ] Statistiques d’observance
-- [ ] Thème sombre
-- [ ] Partage de données entre appareils (optionnel, via export/import QR)
-
------
-
-## 🤝 Contribution
-
-Les issues et pull requests sont les bienvenues. Ce projet est pensé pour rester simple — toute contribution doit respecter l’esprit minimaliste de l’app.
-
------
-
-<div align="center">
-
-Fait avec 🌿 pour simplifier le quotidien médical.
-
-</div>
+Version actuelle: **3.3**

@@ -14,6 +14,26 @@ const TodayScreen = {
       const intakes = Intakes.sortForToday(Intakes.mergeWithActions(events, actionsMap), dateStr);
       const dayProtocolEvents = protocolEvents.filter(e => e.date === dateStr && activeProtocolIds.has(e.protocolId)).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
       const dayNote = notes.find(n=>n.date===dateStr) || {id:uid(),date:dateStr,protocolId:[...activeProtocolIds][0]||'',symptoms:{nausea:0,fatigue:0,pain:0,headache:0,dizziness:0,mood:0,sleep:0,bleeding:0,other:0},otherSymptomLabel:'',freeNote:''};
+
+      const symptomFields = [
+        { key:'nausea', label:'Nausée' },
+        { key:'fatigue', label:'Fatigue' },
+        { key:'pain', label:'Douleur' },
+        { key:'headache', label:'Maux de tête' },
+        { key:'dizziness', label:'Vertiges' },
+        { key:'mood', label:'Humeur' },
+        { key:'sleep', label:'Sommeil' },
+        { key:'bleeding', label:'Saignement' },
+        { key:'other', label: dayNote.otherSymptomLabel || 'Autre symptôme' }
+      ];
+      const symptomOptions = [
+        { value:0, label:'0 - aucun' },
+        { value:1, label:'1 - léger' },
+        { value:2, label:'2 - modéré' },
+        { value:3, label:'3 - fort' }
+      ];
+      const symptomSelects = symptomFields.map(field=>`<label>${escHtml(field.label)}<select id='n-${escHtml(field.key)}' class='form-input'>${symptomOptions.map(opt=>`<option value='${opt.value}' ${Number(dayNote.symptoms?.[field.key]??0)===opt.value?'selected':''}>${opt.label}</option>`).join('')}</select></label>`).join('');
+
       const isToday = dateStr === todayStr();
       const dateLabel = isToday ? 'Aujourd\'hui' : capitalize(formatDateFR(dateStr));
       const takenCount = intakes.filter(i => i.status === 'taken').length;
@@ -21,7 +41,7 @@ const TodayScreen = {
       screen.innerHTML = `<div class="today-header"><div class="today-date-label">${dateLabel}</div><div class="today-count">${intakes.length} prise${intakes.length!==1?'s':''}${intakes.length>0?` · ${takenCount} prise${takenCount!==1?'s':''} effectuée${takenCount!==1?'s':''}`:''}</div></div>
       ${intakes.length===0?TodayScreen._emptyState(filteredMeds.length):intakes.map(i=>TodayScreen._intakeCard(i,dateStr)).join('')}
       <div class="section-title" style="margin-top:12px;font-size:1.1rem;">Événements du jour</div>
-      ${dayProtocolEvents.length?dayProtocolEvents.map(ev=>`<div class="card card-sm"><div style="display:flex;justify-content:space-between;align-items:center;"><strong>${escHtml(ev.time||'—:—')} — ${escHtml(ev.title)}</strong><span>${ev.completed?'✓ Terminé':'À faire'}</span></div><div style="font-size:.82rem;color:var(--text-soft);">${escHtml(ev.type||'autre')}</div><button class="btn-settings btn-toggle-event" data-id="${escHtml(ev.id)}" style="margin-top:8px;">${ev.completed?'Réouvrir':'Terminer'}</button></div>`).join(''):'<div class="card card-sm">Aucun événement protocole ce jour.</div>'}<div class='section-title' style='margin-top:12px;font-size:1.1rem;'>Note du jour</div><div class='card card-sm'><div style='display:grid;grid-template-columns:repeat(3,1fr);gap:6px;'><label>Nausée <input type='number' min='0' max='3' id='n-nausea' value='${dayNote.symptoms.nausea||0}' class='form-input'></label><label>Fatigue <input type='number' min='0' max='3' id='n-fatigue' value='${dayNote.symptoms.fatigue||0}' class='form-input'></label><label>Douleur <input type='number' min='0' max='3' id='n-pain' value='${dayNote.symptoms.pain||0}' class='form-input'></label></div><textarea id='n-free' class='form-input' style='margin-top:8px;' placeholder='Note libre'>${escHtml(dayNote.freeNote||'')}</textarea><button class='btn-settings' id='btn-save-note' style='margin-top:8px;'>Enregistrer la note</button><div style='font-size:.8rem;color:var(--text-soft);margin-top:8px;'>Ce journal ne remplace pas un avis médical. En cas de doute ou de symptôme important, contactez un professionnel de santé.</div></div>`;
+      ${dayProtocolEvents.length?dayProtocolEvents.map(ev=>`<div class="card card-sm"><div style="display:flex;justify-content:space-between;align-items:center;"><strong>${escHtml(ev.time||'—:—')} — ${escHtml(ev.title)}</strong><span>${ev.completed?'✓ Terminé':'À faire'}</span></div><div style="font-size:.82rem;color:var(--text-soft);">${escHtml(ev.type||'autre')}</div><button class="btn-settings btn-toggle-event" data-id="${escHtml(ev.id)}" style="margin-top:8px;">${ev.completed?'Réouvrir':'Terminer'}</button></div>`).join(''):'<div class="card card-sm">Aucun événement protocole ce jour.</div>'}<div class='section-title' style='margin-top:12px;font-size:1.1rem;'>Note du jour</div><div class='card card-sm'><div style='display:grid;grid-template-columns:repeat(3,1fr);gap:6px;'>${symptomSelects}</div><textarea id='n-free' class='form-input' style='margin-top:8px;' placeholder='Note libre'>${escHtml(dayNote.freeNote||'')}</textarea><button class='btn-settings' id='btn-save-note' style='margin-top:8px;'>Enregistrer la note</button><div style='font-size:.8rem;color:var(--text-soft);margin-top:8px;'>Ce journal ne remplace pas un avis médical. En cas de doute ou de symptôme important, contactez un professionnel de santé.</div></div>`;
 
       screen.querySelectorAll('.btn-action').forEach(btn => btn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -29,7 +49,7 @@ const TodayScreen = {
         await TodayScreen._handleAction(action, key, time, dateStr);
       }));
       screen.querySelectorAll('.btn-toggle-event').forEach(btn=>btn.addEventListener('click',async()=>{ await DB.toggleProtocolEventCompleted(btn.dataset.id); await TodayScreen.render(); await TimelineScreen.render(); showToast('Événement mis à jour'); }));
-      screen.querySelector('#btn-save-note')?.addEventListener('click', async()=>{ const clamp=v=>Math.max(0,Math.min(3,Number(v)||0)); const note={...dayNote, freeNote:document.getElementById('n-free').value.trim(), symptoms:{...dayNote.symptoms, nausea:clamp(document.getElementById('n-nausea').value), fatigue:clamp(document.getElementById('n-fatigue').value), pain:clamp(document.getElementById('n-pain').value)}, updatedAt:new Date().toISOString(), createdAt:dayNote.createdAt||new Date().toISOString()}; await DB.saveDailyNote(note); showToast('Note enregistrée'); await JournalScreen.render(); });
+      screen.querySelector('#btn-save-note')?.addEventListener('click', async()=>{ const clamp=v=>Math.max(0,Math.min(3,Number(v)||0)); const symptoms = symptomFields.reduce((acc, field)=>{ acc[field.key]=clamp(document.getElementById(`n-${field.key}`).value); return acc; }, {...dayNote.symptoms}); const note={...dayNote, freeNote:document.getElementById('n-free').value.trim(), symptoms, updatedAt:new Date().toISOString(), createdAt:dayNote.createdAt||new Date().toISOString()}; await DB.saveDailyNote(note); showToast('Note enregistrée'); await JournalScreen.render(); await TimelineScreen.render(); });
     } catch (err) {
       console.error('Today render failed', err); showToast('Impossible d\'afficher les prises du jour');
     }
