@@ -1,10 +1,8 @@
 const TimelineScreen = {
-  // Date sélectionnée dans la timeline.
   selectedDate: todayStr(),
-  // Filtre courant de protocole.
   selectedProtocolId: 'all',
+  hideEmptyDays: false,
 
-  // Rend la timeline avec prises, événements et notes libres.
   async render() {
     const screen = document.getElementById('screen-timeline');
     try {
@@ -13,11 +11,12 @@ const TimelineScreen = {
       ]);
       const actionsMap = Intakes.buildActionsMap(allActions);
       const protocolOpts = ['<option value="all">Tous protocoles</option>'].concat(protocols.map(p=>`<option value="${escHtml(p.id)}" ${TimelineScreen.selectedProtocolId===p.id?'selected':''}>${escHtml(p.name)} (${escHtml(p.status)})</option>`)).join('');
-      const days = []; for (let i=-3;i<=14;i++){ const d=fromDateStr(todayStr()); d.setDate(d.getDate()+i); days.push(toDateStr(d)); }
-      const htmlDays = days.map(ds=>TimelineScreen._dayHtml(ds, medications, phases, actionsMap, protocolEvents, protocols, notes)).join('');
-      screen.innerHTML = `<div class="timeline-toolbar"><select id="timeline-protocol-filter" class="form-input">${protocolOpts}</select><button id="timeline-jump-today" class="btn-settings">Aujourd’hui</button><button id="timeline-add-event" class="btn-settings">+ Événement</button><button id="timeline-add-note" class="btn-settings">+ Note libre</button></div><div class="vertical-timeline">${htmlDays}</div>`;
+      const days = []; for (let i=-4;i<=21;i++){ const d=fromDateStr(todayStr()); d.setDate(d.getDate()+i); days.push(toDateStr(d)); }
+      const htmlDays = days.map(ds=>TimelineScreen._dayHtml(ds, medications, phases, actionsMap, protocolEvents, protocols, notes)).filter(Boolean).join('');
+      screen.innerHTML = `<div class="timeline-shell"><div class="timeline-toolbar"><select id="timeline-protocol-filter" class="form-input">${protocolOpts}</select><button id="timeline-jump-today" class="btn-settings btn-timeline-today">Aujourd’hui</button><label class="timeline-toggle-empty"><input id="timeline-hide-empty" type="checkbox" ${this.hideEmptyDays?'checked':''}/> Masquer les jours vides</label><button id="timeline-add-event" class="btn-settings">+ Événement</button><button id="timeline-add-note" class="btn-settings">+ Note libre</button></div><div class="vertical-timeline">${htmlDays || '<div class="timeline-empty-day">Aucun élément avec les filtres courants.</div>'}</div></div>`;
       screen.querySelector('#timeline-protocol-filter').addEventListener('change', async (e)=>{TimelineScreen.selectedProtocolId=e.target.value; await TimelineScreen.render(); App.updateHeaderDate();});
       screen.querySelector('#timeline-jump-today').addEventListener('click', async ()=>{TimelineScreen.selectedDate=todayStr(); await TimelineScreen.render(); App.updateHeaderDate();});
+      screen.querySelector('#timeline-hide-empty').addEventListener('change', async (e)=>{TimelineScreen.hideEmptyDays=!!e.target.checked; await TimelineScreen.render();});
       screen.querySelectorAll('.timeline-day-header').forEach(el=>el.addEventListener('click',()=>{TimelineScreen.selectedDate=el.dataset.date; App.updateHeaderDate();}));
       screen.querySelector('#timeline-add-event').addEventListener('click',()=>TimelineScreen.openEventForm(null, protocols));
       screen.querySelector('#timeline-add-note').addEventListener('click',()=>TimelineScreen.openFreeNoteForm(TimelineScreen.selectedDate));
@@ -27,47 +26,35 @@ const TimelineScreen = {
       screen.querySelectorAll('[data-ev-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Supprimer cet événement ?')) return; await DB.deleteProtocolEvent(b.dataset.evDel); await TimelineScreen.render(); await TodayScreen.render(); showToast('Événement supprimé');});
     } catch (err) { console.error(err); showToast('Erreur timeline'); }
   },
-  // Ouvre le formulaire d'ajout/édition d'une note libre du jour.
-  async openFreeNoteForm(dateStr){
-    const notes = await DB.getDailyNotes();
-    const current = notes.find(n => n.date === dateStr);
+  async openFreeNoteForm(dateStr){/* unchanged */
+    const notes = await DB.getDailyNotes(); const current = notes.find(n => n.date === dateStr);
     const c=`<div class="modal-header"><span class="modal-title">Note libre</span><button class="modal-close" id="modal-close-btn">✕</button></div><div class="modal-body"><div class="form-group"><label class="form-label">Date</label><input id="note-date" type="date" class="form-input" value="${escHtml(dateStr)}"/></div><div class="form-group"><label class="form-label">Contenu</label><textarea id="note-text" class="form-input" rows="4" placeholder="Symptômes, effets secondaires, ressenti...">${escHtml(current?.freeNote||'')}</textarea></div></div><div class="modal-footer"><button class="btn-secondary" id="note-cancel">Annuler</button><button class="btn-primary" id="note-save">Enregistrer</button></div>`;
-    Modal.show(c);
-    document.getElementById('modal-close-btn').onclick=()=>Modal.hide();
-    document.getElementById('note-cancel').onclick=()=>Modal.hide();
+    Modal.show(c); document.getElementById('modal-close-btn').onclick=()=>Modal.hide(); document.getElementById('note-cancel').onclick=()=>Modal.hide();
     document.getElementById('note-save').onclick=async()=>{const chosenDate=document.getElementById('note-date').value; const content=document.getElementById('note-text').value.trim(); if(!chosenDate) return showToast('Date obligatoire'); if(!content) return showToast('Note vide'); await DB.saveDailyNote({id:chosenDate,date:chosenDate,freeNote:content,symptoms:current?.symptoms||{nausea:0,fatigue:0,pain:0,headache:0,dizziness:0,mood:0,sleep:0,bleeding:0,other:0},otherSymptomLabel:current?.otherSymptomLabel||'',updatedAt:new Date().toISOString(),createdAt:current?.createdAt||new Date().toISOString()}); Modal.hide(); showToast('Note enregistrée au journal'); await TimelineScreen.render(); await JournalScreen.render();};
   },
-  // Ouvre le formulaire de création/modification d'événement protocolaire.
-  openEventForm(ev, protocols){
+  openEventForm(ev, protocols){/* unchanged */
     const c=`<div class="modal-header"><span class="modal-title">${ev?'Modifier':'Créer'} événement</span><button class="modal-close" id="modal-close-btn">✕</button></div><div class="modal-body"><div class="form-group"><label class="form-label">Protocole</label><select id="ev-protocol" class="form-input">${protocols.map(p=>`<option value="${escHtml(p.id)}" ${(ev?.protocolId||TimelineScreen.selectedProtocolId)===p.id?'selected':''}>${escHtml(p.name)}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Titre *</label><input id="ev-title" class="form-input" value="${escHtml(ev?.title||'')}"/></div><div class="form-row"><div class="form-group"><label class="form-label">Date *</label><input id="ev-date" type="date" class="form-input" value="${escHtml(ev?.date||TimelineScreen.selectedDate)}"/></div><div class="form-group"><label class="form-label">Heure</label><input id="ev-time" type="time" class="form-input" value="${escHtml(ev?.time||'')}"/></div></div><div class="form-group"><label class="form-label">Type</label><select id="ev-type" class="form-input"><option>rendez-vous</option><option>prise de sang</option><option>examen</option><option>pharmacie</option><option>injection spéciale</option><option>étape personnalisée</option><option selected>autre</option></select></div><div class="form-group"><label class="form-label">Notes</label><input id="ev-notes" class="form-input" value="${escHtml(ev?.notes||'')}"/></div></div><div class="modal-footer"><button class="btn-secondary" id="ev-cancel">Annuler</button><button class="btn-primary" id="ev-save">Enregistrer</button></div>`;
-    Modal.show(c); const type=document.getElementById('ev-type'); if(ev?.type) type.value=ev.type;
-    document.getElementById('modal-close-btn').onclick=()=>Modal.hide(); document.getElementById('ev-cancel').onclick=()=>Modal.hide();
+    Modal.show(c); const type=document.getElementById('ev-type'); if(ev?.type) type.value=ev.type; document.getElementById('modal-close-btn').onclick=()=>Modal.hide(); document.getElementById('ev-cancel').onclick=()=>Modal.hide();
     document.getElementById('ev-save').onclick=async()=>{try{const title=document.getElementById('ev-title').value.trim(); const date=document.getElementById('ev-date').value; if(!title||!date) return showToast('Titre et date obligatoires'); const data={id:ev?.id||uid(),protocolId:document.getElementById('ev-protocol').value,title,date,time:document.getElementById('ev-time').value||'',type:document.getElementById('ev-type').value,notes:document.getElementById('ev-notes').value.trim(),completed:ev?.completed||false,createdAt:ev?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()}; await DB.saveProtocolEvent(data); Modal.hide(); showToast('Événement enregistré'); await TimelineScreen.render(); await TodayScreen.render();}catch(e){console.error(e);showToast('Erreur événement');}};
   },
   _dayHtml(dateStr, medications, phases, actionsMap, protocolEvents, protocols, notes){
     const dayIntakes = Intakes.mergeWithActions(Intakes.generateForDate(medications, phases, dateStr), actionsMap).filter(i=>TimelineScreen._allowProtocol(i.medId,medications,protocols));
     const dayEvents = protocolEvents.filter(e=>e.date===dateStr && TimelineScreen._allowProtocolEvent(e,protocols));
-    const note = notes.find(n=>n.date===dateStr);
+    const note = notes.find(n=>n.date===dateStr); const today = todayStr();
+    const hasContent = dayIntakes.length || dayEvents.length || note?.freeNote || note?.symptoms;
+    if (TimelineScreen.hideEmptyDays && !hasContent) return '';
     const items = [];
-    for (const i of dayIntakes){ const v=Intakes.getVisualStatus(i,dateStr); items.push(`<div class="timeline-item"><div class="timeline-item-card status-${escHtml(v)}"><div class="timeline-item-time">${escHtml(i.displayTime)}</div><div class="timeline-item-title">${escHtml(i.medName)}</div><div class="timeline-item-detail">${escHtml(i.dosage)} · ${escHtml(statusLabelFR(v))}</div></div></div>`); }
-    for (const e of dayEvents){ items.push(`<div class="timeline-item"><div class="timeline-item-card status-${e.completed?'completed':'event'}"><div class="timeline-item-time">${escHtml(e.time||'—:—')}</div><div class="timeline-item-title">${escHtml(e.title)}</div><div class="timeline-item-detail">${escHtml(e.type||'autre')} · ${e.completed?'terminé':'à faire'}</div><div style="margin-top:6px;display:flex;gap:6px;"><button class="btn-settings" data-ev-edit="${escHtml(e.id)}">Modifier</button><button class="btn-settings" data-ev-toggle="${escHtml(e.id)}">${e.completed?'Réouvrir':'Terminer'}</button><button class="btn-settings" data-ev-del="${escHtml(e.id)}">Supprimer</button></div></div></div>`); }
-    if (note?.freeNote || note?.symptoms) {
-      const symptomText = TimelineScreen._symptomsSummary(note);
-      items.push(`<div class="timeline-item"><div class="timeline-item-card status-event"><div class="timeline-item-time">Note libre</div><div class="timeline-item-detail">${escHtml(note.freeNote||'')}</div>${symptomText?`<div class="timeline-item-detail" style="margin-top:4px;">Symptômes: ${escHtml(symptomText)}</div>`:''}<div style="margin-top:6px;"><button class="btn-settings" data-note-edit="${escHtml(dateStr)}">Modifier</button></div></div></div>`);
-    }
+    for (const i of dayIntakes){ const v=Intakes.getVisualStatus(i,dateStr); items.push(`<div class="timeline-item"><div class="timeline-item-card status-${escHtml(v)}"><div class="timeline-item-icon">💊</div><div><div class="timeline-item-time">${escHtml(i.displayTime)}</div><div class="timeline-item-title">${escHtml(i.medName)} <span class="timeline-badge">${escHtml(statusLabelFR(v))}</span></div><div class="timeline-item-detail">${escHtml(i.dosage)} · ${this._delayText(i)}</div></div></div></div>`); }
+    for (const e of dayEvents){ items.push(`<div class="timeline-item"><div class="timeline-item-card status-${e.completed?'completed':'event'}"><div class="timeline-item-icon">📅</div><div><div class="timeline-item-time">${escHtml(e.time||'—:—')}</div><div class="timeline-item-title">${escHtml(e.title)} <span class="timeline-badge">${e.completed?'Événement terminé':'Événement'}</span></div><div class="timeline-item-detail">${escHtml(e.type||'autre')}</div><div style="margin-top:6px;display:flex;gap:6px;"><button class="btn-settings" data-ev-edit="${escHtml(e.id)}">Modifier</button><button class="btn-settings" data-ev-toggle="${escHtml(e.id)}">${e.completed?'Réouvrir':'Terminer'}</button><button class="btn-settings" data-ev-del="${escHtml(e.id)}">Supprimer</button></div></div></div></div>`); }
+    if (note?.freeNote || note?.symptoms) { const symptomText = TimelineScreen._symptomsSummary(note,true); items.push(`<div class="timeline-item"><div class="timeline-item-card status-note"><div class="timeline-item-icon">📝</div><div><div class="timeline-item-time">Note libre</div><div class="timeline-item-detail">${escHtml(note.freeNote||'')}</div>${symptomText?`<div class="timeline-item-detail" style="margin-top:4px;">Symptômes: ${escHtml(symptomText)}</div>`:''}<div style="margin-top:6px;"><button class="btn-settings" data-note-edit="${escHtml(dateStr)}">Modifier</button></div></div></div></div>`); }
     const d=fromDateStr(dateStr); const label=d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
-    const activeP = protocols.find(p=>p.id===TimelineScreen.selectedProtocolId); let j=''; if(activeP?.startDate){ const diff=Math.floor((d-fromDateStr(activeP.startDate))/86400000)+1; if(diff>0) j=` · J${diff}`; }
-    return `<section class="timeline-day ${TimelineScreen.selectedDate===dateStr?'selected':''}"><div class="timeline-rail"></div><div class="timeline-dot"></div><div class="timeline-day-content"><div class="timeline-day-header" data-date="${dateStr}">${capitalize(label)}${dateStr===todayStr()?' · Aujourd’hui':''}${j}</div>${items.length?items.join(''):'<div class="timeline-item"><div class="timeline-item-card">Aucune action</div></div>'}</div></section>`;
+    const activeP = protocols.find(p=>p.id===TimelineScreen.selectedProtocolId); let protocolBadge='';
+    if(activeP?.startDate){ const diff=Math.floor((d-fromDateStr(activeP.startDate))/86400000)+1; if(diff>0&&diff<=3) protocolBadge=`<span class="timeline-badge">J${diff}</span>`; else if(diff>3) protocolBadge=`<span class="timeline-badge">J+${diff-1}</span>`; }
+    const whenClass = dateStr===today ? 'is-today' : (dateStr<today ? 'is-past' : 'is-future');
+    return `<section class="timeline-day ${whenClass} ${TimelineScreen.selectedDate===dateStr?'selected':''}"><div class="timeline-rail"></div><div class="timeline-dot"></div><div class="timeline-day-content"><div class="timeline-day-header" data-date="${dateStr}">${capitalize(label)} ${dateStr===today?'<span class="timeline-badge today-badge">Aujourd’hui</span>':''} ${protocolBadge}</div>${items.length?items.join(''):'<div class="timeline-empty-day">Aucune action</div>'}</div></section>`;
   },
-
-  _symptomsSummary(note){
-    if (!note?.symptoms) return '';
-    const labels={nausea:'Nausée',fatigue:'Fatigue',pain:'Douleur',headache:'Maux de tête',dizziness:'Vertiges',mood:'Humeur',sleep:'Sommeil',bleeding:'Saignement',other:note.otherSymptomLabel||'Autre'};
-    return Object.entries(labels).map(([key,label])=>`${label} ${Number(note.symptoms[key]??0)}`).join(' · ');
-  },
-
-  // Vérifie si une prise appartient au protocole sélectionné.
+  _delayText(i){ if(i.status!=='taken' || !i.takenAt) return 'non renseigné'; const [h,m]=i.time.split(':').map(Number); const d=new Date(i.takenAt); const delay=(d.getHours()*60+d.getMinutes())-(h*60+m); if(delay===0) return 'à l\'heure'; return delay>0?`+${delay} min`:`${delay} min`; },
+  _symptomsSummary(note,onlyPositive){ if (!note?.symptoms) return ''; const labels={nausea:'Nausée',fatigue:'Fatigue',pain:'Douleur',headache:'Maux de tête',dizziness:'Vertiges',mood:'Humeur',sleep:'Sommeil',bleeding:'Saignement',other:note.otherSymptomLabel||'Autre'}; return Object.entries(labels).filter(([k])=>!onlyPositive||Number(note.symptoms[k]??0)>0).map(([k,label])=>`${label} ${Number(note.symptoms[k]??0)}`).join(' · '); },
   _allowProtocol(medId, medications, protocols){ const med=medications.find(m=>m.id===medId); if(!med) return false; if(TimelineScreen.selectedProtocolId!=='all' && med.protocolId!==TimelineScreen.selectedProtocolId) return false; const p=protocols.find(x=>x.id===med.protocolId); return !p || p.status!=='archived'; },
-  // Vérifie si un événement appartient au protocole sélectionné.
   _allowProtocolEvent(e, protocols){ if(TimelineScreen.selectedProtocolId!=='all'&&e.protocolId!==TimelineScreen.selectedProtocolId) return false; const p=protocols.find(x=>x.id===e.protocolId); return !p || p.status!=='archived'; }
 };

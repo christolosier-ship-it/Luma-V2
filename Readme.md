@@ -256,7 +256,7 @@ Exemple d'arborescence attendue :
 ## Structure du projet
 
 ```txt
-Luma-3.3/
+Luma-3.4/
 ├── index.html
 ├── manifest.json
 ├── sw.js
@@ -280,13 +280,13 @@ Luma-3.3/
     └── calendar.js
 ```
 
-> `calendar.js` peut subsister comme ancien module ou reliquat technique, mais la navigation V3.3 s'articule autour d'Aujourd'hui, Timeline, Journal, Traitements et Réglages.
+> `calendar.js` peut subsister comme ancien module ou reliquat technique, mais la navigation V3.4 s'articule autour d'Aujourd'hui, Timeline, Journal, Traitements et Réglages.
 
 ---
 
 ## Modèle de données
 
-Luma V3.3 utilise la base locale :
+Luma V3.4 utilise la base locale :
 
 ```txt
 luma_db
@@ -315,7 +315,7 @@ Stores principaux :
 ```json
 {
   "app": "Luma",
-  "version": "3.3",
+  "version": "3.4",
   "exportedAt": "2026-05-24T10:00:00.000Z",
   "protocols": [],
   "medications": [],
@@ -339,7 +339,7 @@ L'export JSON est la sauvegarde complète de l'application. Il contient toutes l
 Nom généré :
 
 ```txt
-luma-v3.3-backup-YYYY-MM-DD.json
+luma-v3.4-backup-YYYY-MM-DD.json
 ```
 
 ### Import JSON
@@ -442,7 +442,7 @@ Luma cherche à rester :
 
 <br>
 
-**Luma V3.3**  
+**Luma V3.4**  
 _Un carnet de bord personnel santé, rangé comme une trousse bleue et calme._
 
 </div>
