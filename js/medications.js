@@ -368,7 +368,7 @@ const MedicationsScreen = {
         <div class="confirm-box">
           <div class="confirm-icon">🗑️</div>
           <div class="confirm-title">Supprimer ${escHtml(med.name)} ?</div>
-          <div class="confirm-text">Toutes les phases et l'historique des prises seront perdus définitivement.</div>
+          <div class="confirm-text">Ce médicament sera supprimé des traitements actifs. L’historique déjà enregistré sera conservé dans le Journal.</div>
           <div class="confirm-actions">
             <button class="btn-confirm-cancel" id="del-cancel">Annuler</button>
             <button class="btn-confirm-danger" id="del-confirm">Supprimer</button>
@@ -381,6 +381,18 @@ const MedicationsScreen = {
     document.getElementById('modal-close-btn').addEventListener('click', () => Modal.hide());
     document.getElementById('del-cancel').addEventListener('click', () => Modal.hide());
     document.getElementById('del-confirm').addEventListener('click', async () => {
+      const protocols = await DB.getProtocols();
+      const protocol = protocols.find(p => p.id === med.protocolId);
+      const intakeEvents = await DB.getIntakeEvents();
+      for (const ev of intakeEvents) {
+        if (ev.medicationId !== med.id) continue;
+        const payload = { ...(ev.payload || {}) };
+        if (!payload.medNameSnapshot) payload.medNameSnapshot = med.name || 'médicament supprimé';
+        if (!payload.dosageSnapshot) payload.dosageSnapshot = '';
+        if (!payload.medTypeSnapshot) payload.medTypeSnapshot = med.type || '';
+        if (!payload.protocolNameSnapshot) payload.protocolNameSnapshot = protocol?.name || '';
+        await DB.saveIntakeEvent({ ...ev, payload });
+      }
       await DB.deleteMedication(med.id);
       await DB.deletePhasesByMedication(med.id);
       // Also remove related intake actions
@@ -397,4 +409,3 @@ const MedicationsScreen = {
     });
   },
 };
-

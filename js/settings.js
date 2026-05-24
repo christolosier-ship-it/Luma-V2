@@ -14,6 +14,7 @@ const SettingsScreen = {
     importInput.addEventListener('change', async (e) => {
       const file = e.target.files[0]; if (!file) return;
       try {
+        if (file.size > (5 * 1024 * 1024)) throw new Error('Fichier trop volumineux. Import annulé.');
         const data = JSON.parse(await file.text());
         const check = DB.validateImportData(data); if (!check.ok) throw new Error(check.error);
         const backup = await DB.exportAll();

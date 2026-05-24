@@ -32,6 +32,7 @@ const Intakes = {
             key: Intakes.makeKey(med.id, phase.id, dateStr, time),
             medId: med.id,
             phaseId: phase.id,
+            protocolId: med.protocolId || phase.protocolId || '',
             dateStr,
             time,
             medName: med.name,

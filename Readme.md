@@ -1,7 +1,7 @@
 <div align="center">
   <img src="icons/icone_512x512.png" alt="Icône Luma" width="128" height="128" />
 
-# Luma V3.3
+# Luma V3.4
 
 ### Protocole & Journal
 
@@ -9,7 +9,7 @@
 
 <br>
 
-![Version](https://img.shields.io/badge/version-3.3-2494F2?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-3.4-2494F2?style=for-the-badge)
 ![PWA](https://img.shields.io/badge/PWA-offline--first-31C7C4?style=for-the-badge)
 ![Vanilla JS](https://img.shields.io/badge/Vanilla-JS-F7DF1E?style=for-the-badge&logo=javascript&logoColor=000)
 ![IndexedDB](https://img.shields.io/badge/Storage-IndexedDB-1266C3?style=for-the-badge)
@@ -91,7 +91,7 @@ Statuts possibles des prises :
 
 ### Timeline verticale
 
-La Timeline de Luma V3.3 est une vraie chronologie verticale HTML/CSS, conçue pour lire le protocole comme un parcours.
+La Timeline de Luma V3.4 est une vraie chronologie verticale HTML/CSS, conçue pour lire le protocole comme un parcours.
 
 Elle affiche :
 
@@ -380,6 +380,13 @@ Le rapport inclut :
 ---
 
 ## Sécurité et limites
+
+- CSP front-end activée (`script-src 'self'`, sans inline script).
+- Import JSON limité à 5 Mo et plafonds de volume par collection.
+- `dailyNotes` globales par date (une seule note par jour).
+- Historique journal conservé après suppression de médicament (snapshots).
+
+
 
 ### Sécurité applicative
 

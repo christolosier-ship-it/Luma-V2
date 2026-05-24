@@ -30,12 +30,12 @@ const TimelineScreen = {
   // Ouvre le formulaire d'ajout/édition d'une note libre du jour.
   async openFreeNoteForm(dateStr){
     const notes = await DB.getDailyNotes();
-    const current = notes.find(n => n.date === dateStr && (TimelineScreen.selectedProtocolId==='all' || n.protocolId===TimelineScreen.selectedProtocolId || !n.protocolId));
+    const current = notes.find(n => n.date === dateStr);
     const c=`<div class="modal-header"><span class="modal-title">Note libre</span><button class="modal-close" id="modal-close-btn">✕</button></div><div class="modal-body"><div class="form-group"><label class="form-label">Date</label><input id="note-date" type="date" class="form-input" value="${escHtml(dateStr)}"/></div><div class="form-group"><label class="form-label">Contenu</label><textarea id="note-text" class="form-input" rows="4" placeholder="Symptômes, effets secondaires, ressenti...">${escHtml(current?.freeNote||'')}</textarea></div></div><div class="modal-footer"><button class="btn-secondary" id="note-cancel">Annuler</button><button class="btn-primary" id="note-save">Enregistrer</button></div>`;
     Modal.show(c);
     document.getElementById('modal-close-btn').onclick=()=>Modal.hide();
     document.getElementById('note-cancel').onclick=()=>Modal.hide();
-    document.getElementById('note-save').onclick=async()=>{const chosenDate=document.getElementById('note-date').value; const content=document.getElementById('note-text').value.trim(); if(!chosenDate) return showToast('Date obligatoire'); if(!content) return showToast('Note vide'); const protocolId = current?.protocolId ?? (TimelineScreen.selectedProtocolId==='all' ? '' : TimelineScreen.selectedProtocolId); await DB.saveDailyNote({id:current?.id||uid(),date:chosenDate,protocolId,freeNote:content,updatedAt:new Date().toISOString(),createdAt:current?.createdAt||new Date().toISOString()}); Modal.hide(); showToast('Note enregistrée au journal'); await TimelineScreen.render(); await JournalScreen.render();};
+    document.getElementById('note-save').onclick=async()=>{const chosenDate=document.getElementById('note-date').value; const content=document.getElementById('note-text').value.trim(); if(!chosenDate) return showToast('Date obligatoire'); if(!content) return showToast('Note vide'); await DB.saveDailyNote({id:chosenDate,date:chosenDate,freeNote:content,symptoms:current?.symptoms||{nausea:0,fatigue:0,pain:0,headache:0,dizziness:0,mood:0,sleep:0,bleeding:0,other:0},otherSymptomLabel:current?.otherSymptomLabel||'',updatedAt:new Date().toISOString(),createdAt:current?.createdAt||new Date().toISOString()}); Modal.hide(); showToast('Note enregistrée au journal'); await TimelineScreen.render(); await JournalScreen.render();};
   },
   // Ouvre le formulaire de création/modification d'événement protocolaire.
   openEventForm(ev, protocols){
@@ -47,7 +47,7 @@ const TimelineScreen = {
   _dayHtml(dateStr, medications, phases, actionsMap, protocolEvents, protocols, notes){
     const dayIntakes = Intakes.mergeWithActions(Intakes.generateForDate(medications, phases, dateStr), actionsMap).filter(i=>TimelineScreen._allowProtocol(i.medId,medications,protocols));
     const dayEvents = protocolEvents.filter(e=>e.date===dateStr && TimelineScreen._allowProtocolEvent(e,protocols));
-    const note = notes.find(n=>n.date===dateStr && (TimelineScreen.selectedProtocolId==='all' || !n.protocolId || n.protocolId===TimelineScreen.selectedProtocolId));
+    const note = notes.find(n=>n.date===dateStr);
     const items = [];
     for (const i of dayIntakes){ const v=Intakes.getVisualStatus(i,dateStr); items.push(`<div class="timeline-item"><div class="timeline-item-card status-${escHtml(v)}"><div class="timeline-item-time">${escHtml(i.displayTime)}</div><div class="timeline-item-title">${escHtml(i.medName)}</div><div class="timeline-item-detail">${escHtml(i.dosage)} · ${escHtml(statusLabelFR(v))}</div></div></div>`); }
     for (const e of dayEvents){ items.push(`<div class="timeline-item"><div class="timeline-item-card status-${e.completed?'completed':'event'}"><div class="timeline-item-time">${escHtml(e.time||'—:—')}</div><div class="timeline-item-title">${escHtml(e.title)}</div><div class="timeline-item-detail">${escHtml(e.type||'autre')} · ${e.completed?'terminé':'à faire'}</div><div style="margin-top:6px;display:flex;gap:6px;"><button class="btn-settings" data-ev-edit="${escHtml(e.id)}">Modifier</button><button class="btn-settings" data-ev-toggle="${escHtml(e.id)}">${e.completed?'Réouvrir':'Terminer'}</button><button class="btn-settings" data-ev-del="${escHtml(e.id)}">Supprimer</button></div></div></div>`); }

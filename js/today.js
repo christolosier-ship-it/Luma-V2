@@ -13,7 +13,7 @@ const TodayScreen = {
       const events = Intakes.generateForDate(filteredMeds, filteredPhases, dateStr);
       const intakes = Intakes.sortForToday(Intakes.mergeWithActions(events, actionsMap), dateStr);
       const dayProtocolEvents = protocolEvents.filter(e => e.date === dateStr && activeProtocolIds.has(e.protocolId)).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
-      const dayNote = notes.find(n=>n.date===dateStr) || {id:uid(),date:dateStr,protocolId:[...activeProtocolIds][0]||'',symptoms:{nausea:0,fatigue:0,pain:0,headache:0,dizziness:0,mood:0,sleep:0,bleeding:0,other:0},otherSymptomLabel:'',freeNote:''};
+      const dayNote = notes.find(n=>n.date===dateStr) || {id:dateStr,date:dateStr,symptoms:{nausea:0,fatigue:0,pain:0,headache:0,dizziness:0,mood:0,sleep:0,bleeding:0,other:0},otherSymptomLabel:'',freeNote:''};
 
       const symptomFields = [
         { key:'nausea', label:'Nausée' },
