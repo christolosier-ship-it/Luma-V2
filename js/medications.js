@@ -3,6 +3,8 @@
  */
 
 const MedicationsScreen = {
+  protocolFilter: "active",
+  searchQuery: "",
 
   async render() {
     const screen = document.getElementById('screen-medications');
@@ -18,7 +20,7 @@ const MedicationsScreen = {
 
     screen.innerHTML = `
       <div class="section-title">Traitements</div>
-      ${MedicationsScreen._protocolsSection(protocols, medications)}
+      ${MedicationsScreen._protocolsSection(protocols, medications, phases)}
       <div class="section-subtitle">${medications.length} médicament${medications.length !== 1 ? 's' : ''} configuré${medications.length !== 1 ? 's' : ''}</div>
       <div class="med-list">${listHtml}</div>
       <button class="fab" id="btn-add-med">＋</button>
@@ -50,6 +52,8 @@ const MedicationsScreen = {
     });
 
     screen.querySelector('#btn-add-protocol')?.addEventListener('click',()=>MedicationsScreen.openProtocolForm());
+    screen.querySelectorAll('.protocol-filter-pill').forEach(btn=>btn.addEventListener('click', async ()=>{ MedicationsScreen.protocolFilter = btn.dataset.filter; await MedicationsScreen.render(); }));
+    screen.querySelector('#protocol-search')?.addEventListener('input', async (e)=>{ MedicationsScreen.searchQuery = e.target.value || ''; await MedicationsScreen.render(); });
     screen.querySelectorAll('.btn-protocol-action').forEach(btn=>btn.addEventListener('click',async()=>{
       const p=protocols.find(x=>x.id===btn.dataset.protocolId); if(!p) return;
       await MedicationsScreen.handleProtocolAction(p, btn.dataset.action);
@@ -329,12 +333,29 @@ const MedicationsScreen = {
   },
 
 
-  _protocolsSection(protocols, medications){
-    const cards = protocols.map(p=>{
+  _protocolsSection(protocols, medications, phases){
+    const labels={active:'Actifs',paused:'En pause',completed:'Terminés',archived:'Archivés',all:'Tous'};
+    const filtered = protocols.filter(p=>MedicationsScreen.protocolFilter==='all'?true:p.status===MedicationsScreen.protocolFilter);
+    const q = MedicationsScreen.searchQuery.trim().toLowerCase();
+    const searched = filtered.filter(p=>{
+      if(!q) return true;
+      const pm = medications.filter(m=>m.protocolId===p.id);
+      const hay = [p.name,p.status,...pm.flatMap(m=>[m.name,m.type,...phases.filter(ph=>ph.medicationId===m.id).map(ph=>ph.dosage||'')])].join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+    const cards = searched.map(p=>{
       const count=medications.filter(m=>m.protocolId===p.id).length;
-      return `<div class="card card-sm"><div style="display:flex;justify-content:space-between;align-items:center;"><div><strong>${escHtml(p.name)}</strong><div style="font-size:.8rem;color:var(--text-soft);">${escHtml(p.status||'active')} · ${escHtml(p.startDate||'—')} ${p.endDate?`→ ${escHtml(p.endDate)}`:''} · ${count} médicaments</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;"><button class="btn-settings btn-protocol-action" data-action="edit" data-protocol-id="${escHtml(p.id)}">Modifier</button><button class="btn-settings btn-protocol-action" data-action="pause" data-protocol-id="${escHtml(p.id)}">Pause</button><button class="btn-settings btn-protocol-action" data-action="resume" data-protocol-id="${escHtml(p.id)}">Reprendre</button><button class="btn-settings btn-protocol-action" data-action="complete" data-protocol-id="${escHtml(p.id)}">Terminer</button><button class="btn-settings btn-protocol-action" data-action="archive" data-protocol-id="${escHtml(p.id)}">Archiver</button><button class="btn-settings btn-protocol-action" data-action="delete" data-protocol-id="${escHtml(p.id)}">Supprimer</button></div></div></div>`;
+      const actions = MedicationsScreen._protocolActionsByStatus(p.status||'active');
+      return `<div class="card card-sm"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><div><strong>${escHtml(p.name)}</strong><div style="font-size:.8rem;color:var(--text-soft);">${escHtml(p.status||'active')} · ${escHtml(p.startDate||'—')} ${p.endDate?`→ ${escHtml(p.endDate)}`:''} · ${count} médicaments</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">${actions.map(a=>`<button class="btn-settings btn-protocol-action ${a.danger?'btn-protocol-danger':''}" data-action="${a.action}" data-protocol-id="${escHtml(p.id)}">${a.label}</button>`).join('')}</div></div></div>`;
     }).join('');
-    return `<div class="section-subtitle">Protocoles</div><div>${cards || '<div class="card card-sm">Aucun protocole</div>'}</div><button class="btn-settings" id="btn-add-protocol" style="margin-bottom:10px;">+ Protocole</button>`;
+    const pills = ['active','paused','completed','archived','all'].map(k=>`<button class="btn-settings protocol-filter-pill ${MedicationsScreen.protocolFilter===k?'active':''}" data-filter="${k}">${labels[k]}</button>`).join('');
+    return `<div class="section-subtitle">Protocoles</div><input id="protocol-search" class="form-input" placeholder="Rechercher un traitement ou protocole" value="${escHtml(MedicationsScreen.searchQuery)}"/><div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px;">${pills}</div><div>${cards || '<div class="card card-sm">Aucun résultat.</div>'}</div><button class="btn-settings" id="btn-add-protocol" style="margin-bottom:10px;">+ Protocole</button>`;
+  },
+  _protocolActionsByStatus(status){
+    if(status==='paused') return [{action:'edit',label:'Modifier'},{action:'resume',label:'Reprendre'},{action:'archive',label:'Archiver'}];
+    if(status==='completed') return [{action:'edit',label:'Consulter'},{action:'resume',label:'Réactiver'},{action:'archive',label:'Archiver'}];
+    if(status==='archived') return [{action:'edit',label:'Consulter'},{action:'resume',label:'Restaurer'},{action:'delete',label:'Supprimer',danger:true}];
+    return [{action:'edit',label:'Modifier'},{action:'pause',label:'Pause'},{action:'complete',label:'Terminer'},{action:'archive',label:'Archiver'}];
   },
   openProtocolForm(protocol=null){
     const now=todayStr();

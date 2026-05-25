@@ -2,9 +2,11 @@ const TimelineScreen = {
   selectedDate: todayStr(),
   selectedProtocolId: 'all',
   hideEmptyDays: false,
+  _hideEmptyStorageKey: "luma.timeline.hideEmptyDays",
 
   async render() {
     const screen = document.getElementById('screen-timeline');
+    if (localStorage.getItem(this._hideEmptyStorageKey) != null) this.hideEmptyDays = localStorage.getItem(this._hideEmptyStorageKey) === 'true';
     try {
       const [medications, phases, allActions, protocolEvents, protocols, notes] = await Promise.all([
         DB.getMedications(), DB.getPhases(), DB.getAllIntakeActions(), DB.getProtocolEvents(), DB.getProtocols(), DB.getDailyNotes()
@@ -16,7 +18,7 @@ const TimelineScreen = {
       screen.innerHTML = `<div class="timeline-shell"><div class="timeline-toolbar"><select id="timeline-protocol-filter" class="form-input">${protocolOpts}</select><button id="timeline-jump-today" class="btn-settings btn-timeline-today">Aujourd’hui</button><label class="timeline-toggle-empty"><input id="timeline-hide-empty" type="checkbox" ${this.hideEmptyDays?'checked':''}/> Masquer les jours vides</label><button id="timeline-add-event" class="btn-settings">+ Événement</button><button id="timeline-add-note" class="btn-settings">+ Note libre</button></div><div class="vertical-timeline">${htmlDays || '<div class="timeline-empty-day">Aucun élément avec les filtres courants.</div>'}</div></div>`;
       screen.querySelector('#timeline-protocol-filter').addEventListener('change', async (e)=>{TimelineScreen.selectedProtocolId=e.target.value; await TimelineScreen.render(); App.updateHeaderDate();});
       screen.querySelector('#timeline-jump-today').addEventListener('click', async ()=>{TimelineScreen.selectedDate=todayStr(); await TimelineScreen.render(); App.updateHeaderDate();});
-      screen.querySelector('#timeline-hide-empty').addEventListener('change', async (e)=>{TimelineScreen.hideEmptyDays=!!e.target.checked; await TimelineScreen.render();});
+      screen.querySelector('#timeline-hide-empty').addEventListener('change', async (e)=>{TimelineScreen.hideEmptyDays=!!e.target.checked; localStorage.setItem(TimelineScreen._hideEmptyStorageKey, TimelineScreen.hideEmptyDays ? 'true' : 'false'); await TimelineScreen.render();});
       screen.querySelectorAll('.timeline-day-header').forEach(el=>el.addEventListener('click',()=>{TimelineScreen.selectedDate=el.dataset.date; App.updateHeaderDate();}));
       screen.querySelector('#timeline-add-event').addEventListener('click',()=>TimelineScreen.openEventForm(null, protocols));
       screen.querySelector('#timeline-add-note').addEventListener('click',()=>TimelineScreen.openFreeNoteForm(TimelineScreen.selectedDate));

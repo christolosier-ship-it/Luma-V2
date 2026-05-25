@@ -122,7 +122,7 @@ const DB = {
     const [protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents] = await Promise.all([
       getAll(STORES.PROTOCOLS),getAll(STORES.MEDICATIONS),getAll(STORES.PHASES),getAll(STORES.INTAKE_ACTIONS),getAll(STORES.INTAKE_EVENTS),getAll(STORES.DAILY_NOTES),getAll(STORES.PROTOCOL_EVENTS)
     ]);
-    return { app:'Luma', version:'3.4', exportedAt:new Date().toISOString(), protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents, settings:{} };
+    return { app:'Luma', version:'3.4.1', exportedAt:new Date().toISOString(), protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents, settings:{} };
   },
   validateImportData(data){
     if (!data || typeof data !== 'object') return {ok:false,error:'Fichier JSON invalide'};
@@ -163,8 +163,8 @@ const DB = {
     if (!Array.isArray(incoming.protocols) || incoming.protocols.length === 0) {
       const defaultProtocol = { id: uid(), name: DEFAULT_PROTOCOL_NAME, type:'free', startDate: incoming.phases?.map(p=>p.startDate).filter(Boolean).sort()[0] || todayStr(), status:'active', notes:'', createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(), isDefault:true };
       incoming.protocols = [defaultProtocol];
-      incoming.medications = (incoming.medications||[]).map(m=>({...m, protocolId:m.protocolId || defaultProtocol.id}));
-      incoming.phases = (incoming.phases||[]).map(p=>({...p, protocolId:p.protocolId || defaultProtocol.id}));
+      incoming.medications = (incoming.medications||[]).map(m=>({...m, protocolId:defaultProtocol.id}));
+      incoming.phases = (incoming.phases||[]).map(p=>({...p, protocolId:defaultProtocol.id}));
     }
     const notesByDate = new Map();
     for (const note of (incoming.dailyNotes || [])) {
@@ -181,6 +181,10 @@ const DB = {
       }
     }
     incoming.dailyNotes = [...notesByDate.values()];
+    const protocolIds = new Set((incoming.protocols||[]).map(p=>p.id));
+    const medIds = new Set((incoming.medications||[]).map(m=>m.id));
+    incoming.medications = (incoming.medications||[]).map(m=>({ ...m, protocolId: protocolIds.has(m.protocolId) ? m.protocolId : (incoming.protocols[0]?.id || null) }));
+    incoming.phases = (incoming.phases||[]).filter(p=>medIds.has(p.medicationId)).map(p=>({ ...p, protocolId: protocolIds.has(p.protocolId) ? p.protocolId : (incoming.protocols[0]?.id || null) }));
     try {
       for (const s of Object.values(STORES)) await clearStore(s);
       for (const p of incoming.protocols || []) await putItem(STORES.PROTOCOLS,p);
