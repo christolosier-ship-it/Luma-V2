@@ -122,7 +122,7 @@ const DB = {
     const [protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents] = await Promise.all([
       getAll(STORES.PROTOCOLS),getAll(STORES.MEDICATIONS),getAll(STORES.PHASES),getAll(STORES.INTAKE_ACTIONS),getAll(STORES.INTAKE_EVENTS),getAll(STORES.DAILY_NOTES),getAll(STORES.PROTOCOL_EVENTS)
     ]);
-    return { app:'Luma', version:'3.4.1', exportedAt:new Date().toISOString(), protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents, settings:{} };
+    return { app:'Luma', version:'3.4.2', exportedAt:new Date().toISOString(), protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents, settings:{} };
   },
   validateImportData(data){
     if (!data || typeof data !== 'object') return {ok:false,error:'Fichier JSON invalide'};

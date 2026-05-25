@@ -11,7 +11,7 @@ const MedicationsScreen = {
     const [medications, phases, protocols] = await Promise.all([DB.getMedications(),DB.getPhases(),DB.getProtocols()]);
 
     const listHtml = medications.length === 0
-      ? `<div class="empty-state"><div class="empty-icon">💊</div><p>Aucun traitement.<br>Ajoutez votre premier médicament.</p></div>`
+      ? `<div class="empty-state empty-state-welcome"><div class="empty-icon">👋</div><h3>Bienvenue dans Luma</h3><p>Créez un protocole, ajoutez un médicament ou importez une sauvegarde pour commencer.</p><div class="empty-actions"><button class="btn-settings js-empty-add-protocol">Créer un protocole</button><button class="btn-settings js-empty-add-med">Ajouter un médicament</button><button class="btn-settings js-empty-import">Importer JSON</button></div></div>`
       : medications.map(med => {
           const medPhases = phases.filter(p => p.medicationId === med.id)
             .sort((a, b) => a.startDate.localeCompare(b.startDate));
@@ -52,6 +52,9 @@ const MedicationsScreen = {
     });
 
     screen.querySelector('#btn-add-protocol')?.addEventListener('click',()=>MedicationsScreen.openProtocolForm());
+    screen.querySelector('.js-empty-add-protocol')?.addEventListener('click',()=>MedicationsScreen.openProtocolForm());
+    screen.querySelector('.js-empty-add-med')?.addEventListener('click',()=>MedicationsScreen.openForm(null, null, protocols));
+    screen.querySelector('.js-empty-import')?.addEventListener('click', ()=>{ App.navigateTo('settings'); setTimeout(()=>document.getElementById('btn-import')?.click(), 50); });
     screen.querySelectorAll('.protocol-filter-pill').forEach(btn=>btn.addEventListener('click', async ()=>{ MedicationsScreen.protocolFilter = btn.dataset.filter; await MedicationsScreen.render(); }));
     screen.querySelector('#protocol-search')?.addEventListener('input', async (e)=>{ MedicationsScreen.searchQuery = e.target.value || ''; await MedicationsScreen.render(); });
     screen.querySelectorAll('.btn-protocol-action').forEach(btn=>btn.addEventListener('click',async()=>{
@@ -335,21 +338,38 @@ const MedicationsScreen = {
 
   _protocolsSection(protocols, medications, phases){
     const labels={active:'Actifs',paused:'En pause',completed:'Terminés',archived:'Archivés',all:'Tous'};
-    const filtered = protocols.filter(p=>MedicationsScreen.protocolFilter==='all'?true:p.status===MedicationsScreen.protocolFilter);
     const q = MedicationsScreen.searchQuery.trim().toLowerCase();
-    const searched = filtered.filter(p=>{
+    const statusMatch = p => (MedicationsScreen.protocolFilter==='all'?true:p.status===MedicationsScreen.protocolFilter);
+    const protocolById = new Map(protocols.map(p=>[p.id,p]));
+    const phaseByMed = new Map();
+    phases.forEach(ph=>{ if(!phaseByMed.has(ph.medicationId)) phaseByMed.set(ph.medicationId, []); phaseByMed.get(ph.medicationId).push(ph); });
+
+    const visibleProtocols = protocols.filter(p=>{
+      if(!statusMatch(p)) return false;
       if(!q) return true;
       const pm = medications.filter(m=>m.protocolId===p.id);
-      const hay = [p.name,p.status,...pm.flatMap(m=>[m.name,m.type,...phases.filter(ph=>ph.medicationId===m.id).map(ph=>ph.dosage||'')])].join(' ').toLowerCase();
+      const hay = [p.name,p.type,p.status,p.notes,...pm.flatMap(m=>[m.name,m.type,m.notes,...(phaseByMed.get(m.id)||[]).flatMap(ph=>[ph.dosage,ph.notes])])].join(' ').toLowerCase();
       return hay.includes(q);
     });
-    const cards = searched.map(p=>{
+
+    const visibleMeds = medications.filter(m=>{
+      const protocol = protocolById.get(m.protocolId);
+      if(protocol && !statusMatch(protocol)) return false;
+      if(!q) return true;
+      const medHay = [m.name,m.type,m.dosage,m.notes,protocol?.name,...(phaseByMed.get(m.id)||[]).flatMap(ph=>[ph.dosage,ph.notes,ph.type])].join(' ').toLowerCase();
+      return medHay.includes(q);
+    });
+
+    const protocolCards = visibleProtocols.map(p=>{
       const count=medications.filter(m=>m.protocolId===p.id).length;
       const actions = MedicationsScreen._protocolActionsByStatus(p.status||'active');
       return `<div class="card card-sm"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><div><strong>${escHtml(p.name)}</strong><div style="font-size:.8rem;color:var(--text-soft);">${escHtml(p.status||'active')} · ${escHtml(p.startDate||'—')} ${p.endDate?`→ ${escHtml(p.endDate)}`:''} · ${count} médicaments</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">${actions.map(a=>`<button class="btn-settings btn-protocol-action ${a.danger?'btn-protocol-danger':''}" data-action="${a.action}" data-protocol-id="${escHtml(p.id)}">${a.label}</button>`).join('')}</div></div></div>`;
     }).join('');
+
+    const medHits = visibleMeds.length ? `<div class="section-subtitle" style="margin:8px 0;">Médicaments</div>${visibleMeds.map(m=>`<div class="card card-sm"><strong>${escHtml(m.name)}</strong><div style="font-size:.82rem;color:var(--text-soft);">${escHtml(m.type||'Type non renseigné')} · Protocole : ${escHtml(protocolById.get(m.protocolId)?.name||'Sans protocole')}</div></div>`).join('')}` : '';
     const pills = ['active','paused','completed','archived','all'].map(k=>`<button class="btn-settings protocol-filter-pill ${MedicationsScreen.protocolFilter===k?'active':''}" data-filter="${k}">${labels[k]}</button>`).join('');
-    return `<div class="section-subtitle">Protocoles</div><input id="protocol-search" class="form-input" placeholder="Rechercher un traitement ou protocole" value="${escHtml(MedicationsScreen.searchQuery)}"/><div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px;">${pills}</div><div>${cards || '<div class="card card-sm">Aucun résultat.</div>'}</div><button class="btn-settings" id="btn-add-protocol" style="margin-bottom:10px;">+ Protocole</button>`;
+    const noResults = (!protocolCards && !medHits) ? '<div class="card card-sm">Aucun résultat.</div>' : '';
+    return `<div class="section-subtitle">Protocoles</div><input id="protocol-search" class="form-input" placeholder="Rechercher un traitement ou protocole" value="${escHtml(MedicationsScreen.searchQuery)}"/><div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px;">${pills}</div><div>${protocolCards}</div>${medHits}${noResults}<button class="btn-settings" id="btn-add-protocol" style="margin:10px 0;">+ Protocole</button>`;
   },
   _protocolActionsByStatus(status){
     if(status==='paused') return [{action:'edit',label:'Modifier'},{action:'resume',label:'Reprendre'},{action:'archive',label:'Archiver'}];

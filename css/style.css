@@ -676,3 +676,9 @@ input, select, textarea { font-family: var(--font-body); }
 .protocol-filter-pill.active{background:var(--sage-dark);color:#fff;}
 .btn-protocol-danger{opacity:.8}
 .today-summary{margin-bottom:12px;}
+
+.empty-state-welcome h3{font-size:1.05rem;color:var(--sage-dark);margin-bottom:8px;}
+.empty-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px;}
+.today-summary{border:1px solid #dbeaff;background:#f8fcff;margin-bottom:12px;}
+.today-summary-title{font-weight:600;color:var(--sage-dark);margin-bottom:4px;}
+.settings-info-card p{font-size:.84rem;color:var(--text-soft);margin-top:6px;}

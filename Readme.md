@@ -1,7 +1,7 @@
 <div align="center">
   <img src="icons/icone_512x512.png" alt="Icône Luma" width="128" height="128" />
 
-# Luma V3.4.1
+# Luma V3.4.2
 
 ### Protocole & Journal
 
@@ -9,7 +9,7 @@
 
 <br>
 
-![Version](https://img.shields.io/badge/version-3.4.1-2494F2?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-3.4.2-2494F2?style=for-the-badge)
 ![PWA](https://img.shields.io/badge/PWA-offline--first-31C7C4?style=for-the-badge)
 ![Vanilla JS](https://img.shields.io/badge/Vanilla-JS-F7DF1E?style=for-the-badge&logo=javascript&logoColor=000)
 ![IndexedDB](https://img.shields.io/badge/Storage-IndexedDB-1266C3?style=for-the-badge)
@@ -91,7 +91,7 @@ Statuts possibles des prises :
 
 ### Timeline verticale
 
-La Timeline de Luma V3.4.1 est une vraie chronologie verticale HTML/CSS, conçue pour lire le protocole comme un parcours.
+La Timeline de Luma V3.4.2 est une vraie chronologie verticale HTML/CSS, conçue pour lire le protocole comme un parcours.
 
 Elle affiche :
 
@@ -286,7 +286,7 @@ Luma-3.4/
 
 ## Modèle de données
 
-Luma V3.4.1 utilise la base locale :
+Luma V3.4.2 utilise la base locale :
 
 ```txt
 luma_db
@@ -442,7 +442,7 @@ Luma cherche à rester :
 
 <br>
 
-**Luma V3.4.1**  
+**Luma V3.4.2**  
 _Un carnet de bord personnel santé, rangé comme une trousse bleue et calme._
 
 </div>
