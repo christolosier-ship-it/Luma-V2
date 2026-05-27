@@ -129,19 +129,17 @@ const DB = {
     const [protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, dailySymptoms, protocolEvents] = await Promise.all([
       getAll(STORES.PROTOCOLS),getAll(STORES.MEDICATIONS),getAll(STORES.PHASES),getAll(STORES.INTAKE_ACTIONS),getAll(STORES.INTAKE_EVENTS),getAll(STORES.DAILY_NOTES),getAll(STORES.DAILY_SYMPTOMS),getAll(STORES.PROTOCOL_EVENTS)
     ]);
-    return { app:'Luma', version:'3.4.3', exportedAt:new Date().toISOString(), protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, dailySymptoms, protocolEvents, settings:{} };
+    return { app:'Luma', version:'3.4.4', exportedAt:new Date().toISOString(), protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, dailySymptoms, protocolEvents, settings:{} };
   },
   validateImportData(data){
     if (!data || typeof data !== 'object') return {ok:false,error:'Fichier JSON invalide'};
     const version = String(data.version || '');
-    if (data.app !== 'Luma' || version !== '3.4.3') return { ok:false, error:'Format d’import incompatible avec Luma V3.4.3.' };
-    const meds = data.medications || []; const phases = data.phases || []; const actions = data.intakeActions || [];
-    if (![meds,phases,actions].every(Array.isArray)) return {ok:false,error:'Structure JSON invalide'};
-    const protocols = Array.isArray(data.protocols) ? data.protocols : [];
-    const isLegacy = !Array.isArray(data.protocols) || data.protocols.length === 0;
+    if (data.app !== 'Luma' || version !== '3.4.4') return { ok:false, error:'Format d’import incompatible avec Luma V3.4.4.' };
+    const required=['protocols','medications','phases','intakeActions','intakeEvents','dailyNotes','dailySymptoms','protocolEvents'];
+    for (const k of required) if (!Array.isArray(data[k])) return {ok:false,error:`${k} doit être un tableau`};
+    const meds = data.medications; const phases = data.phases; const actions = data.intakeActions; const protocols = data.protocols;
     for (const [k,max] of Object.entries(IMPORT_LIMITS)) {
-      if (data[k] != null && !Array.isArray(data[k])) return {ok:false,error:`${k} doit être un tableau`};
-      if (Array.isArray(data[k]) && data[k].length > max) return {ok:false,error:`Volume ${k} trop élevé`};
+            if (Array.isArray(data[k]) && data[k].length > max) return {ok:false,error:`Volume ${k} trop élevé`};
     }
     const protocolIds = new Set(protocols.map(p=>p.id));
     const medIds = new Set(meds.map(m=>m.id));
@@ -153,10 +151,8 @@ const DB = {
     }
     for (const pr of protocols){ if(!VALID_PROTOCOL_STATUS.has(pr.status||'active')) return {ok:false,error:'Statut protocole invalide'}; if(pr.startDate && !DATE_RE.test(pr.startDate)) return {ok:false,error:'Date protocole invalide'}; }
     for (const a of actions){ if(!VALID_ACTION_STATUS.has(a.status)) return {ok:false,error:'Statut action invalide'}; if(a.date && !DATE_RE.test(a.date)) return {ok:false,error:'Date action invalide'}; if(a.time && !isValidTimeHHMM(a.time)) return {ok:false,error:'Heure action invalide'}; }
-    if (!isLegacy) {
-      for (const m of meds) { if (!m.protocolId || !protocolIds.has(m.protocolId)) return {ok:false,error:'medication.protocolId invalide'}; }
-      for (const p of phases) { if (!p.protocolId || !protocolIds.has(p.protocolId)) return {ok:false,error:'phase.protocolId invalide'}; }
-    }
+    for (const m of meds) { if (!m.protocolId || !protocolIds.has(m.protocolId)) return {ok:false,error:'medication.protocolId invalide'}; }
+    for (const p of phases) { if (!p.protocolId || !protocolIds.has(p.protocolId)) return {ok:false,error:'phase.protocolId invalide'}; }
     for (const n of (data.dailyNotes||[])) { if(!n.date||!DATE_RE.test(n.date)) return {ok:false,error:'dailyNotes.date invalide'}; if(typeof n.freeNote!=='string') return {ok:false,error:'dailyNotes.freeNote invalide'}; }
     for (const s of (data.dailySymptoms||[])) {
       if(!s.date||!DATE_RE.test(s.date)) return {ok:false,error:'dailySymptoms.date invalide'};
@@ -164,19 +160,13 @@ const DB = {
       for(const k of ['nausea','fatigue','pain','headache','dizziness','mood','sleep','bleeding','other']){const v=Number(s.symptoms?.[k]??0); if(![0,1,2,3].includes(v)) return {ok:false,error:'Symptôme hors plage 0-3'};}
     }
     for (const e of (data.intakeEvents||[])) { if(!e.type || !VALID_INTAKE_EVENT_TYPE.has(e.type)) return {ok:false,error:'Type intakeEvent invalide'}; }
-    if (version.startsWith('3')) {
-      for (const ev of (data.protocolEvents || [])) if (!ev.protocolId || !protocolIds.has(ev.protocolId)) return {ok:false,error:'Événement protocole invalide'};
-    }
+    for (const ev of (data.protocolEvents || [])) { if (!ev.protocolId || !protocolIds.has(ev.protocolId)) return {ok:false,error:'Événement protocole invalide'}; if (!isValidProtocolEventType(ev.type)) return {ok:false,error:'Type événement protocole invalide'}; if (!DATE_RE.test(String(ev.date||''))) return {ok:false,error:'Date événement protocole invalide'}; if (ev.time && !isValidTimeHHMM(ev.time)) return {ok:false,error:'Heure événement protocole invalide'}; }
     return {ok:true, version};
   },
   async importAll(data){
     const backup = await DB.exportAll();
     const v = DB.validateImportData(data); if (!v.ok) throw new Error(v.error);
     const incoming = structuredClone(data);
-    const protocolIds = new Set((incoming.protocols||[]).map(p=>p.id));
-    const medIds = new Set((incoming.medications||[]).map(m=>m.id));
-    incoming.medications = (incoming.medications||[]).map(m=>({ ...m, protocolId: protocolIds.has(m.protocolId) ? m.protocolId : (incoming.protocols[0]?.id || null) }));
-    incoming.phases = (incoming.phases||[]).filter(p=>medIds.has(p.medicationId)).map(p=>({ ...p, protocolId: protocolIds.has(p.protocolId) ? p.protocolId : (incoming.protocols[0]?.id || null) }));
     try {
       for (const s of Object.values(STORES)) await clearStore(s);
       for (const p of incoming.protocols || []) await putItem(STORES.PROTOCOLS,p);

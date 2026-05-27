@@ -153,3 +153,27 @@ function symptomsToText(symptomEntry, onlyPositive = true) {
     .map(([key, label]) => `${label} ${Number(symptomEntry.symptoms[key] ?? 0)}`)
     .join(' · ');
 }
+
+
+const PROTOCOL_EVENT_TYPES = [
+  { value: 'appointment', label: 'Rendez-vous' },
+  { value: 'exam', label: 'Examen' },
+  { value: 'lab', label: 'Analyse / laboratoire' },
+  { value: 'pharmacy', label: 'Pharmacie' },
+  { value: 'injectionSpecial', label: 'Injection spéciale' },
+  { value: 'custom', label: 'Autre' },
+];
+
+function eventTypeLabelFR(type) {
+  const item = PROTOCOL_EVENT_TYPES.find((t) => t.value === type);
+  return item ? item.label : 'Autre';
+}
+
+function isValidProtocolEventType(type) {
+  return PROTOCOL_EVENT_TYPES.some((t) => t.value === type);
+}
+
+function protocolStatusLabelFR(status) {
+  const labels = { active: 'Actif', paused: 'En pause', completed: 'Terminé', archived: 'Archivé' };
+  return labels[status] || 'Actif';
+}
