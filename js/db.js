@@ -1,5 +1,5 @@
 const DB_NAME = 'luma_db';
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 
 const STORES = {
   PROTOCOLS: 'protocols',
@@ -8,6 +8,7 @@ const STORES = {
   INTAKE_ACTIONS: 'intakeActions',
   INTAKE_EVENTS: 'intakeEvents',
   DAILY_NOTES: 'dailyNotes',
+  DAILY_SYMPTOMS: 'dailySymptoms',
   PROTOCOL_EVENTS: 'protocolEvents',
 };
 
@@ -18,7 +19,7 @@ const VALID_PROTOCOL_STATUS = new Set(['active','paused','completed','archived']
 const VALID_ACTION_STATUS = new Set(['taken','skipped','snoozed']);
 const VALID_INTAKE_EVENT_TYPE = new Set(['taken','skipped','snoozed','undo','missed','edited','noteAdded']);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const IMPORT_LIMITS = { protocols:100, medications:500, phases:2000, intakeActions:50000, intakeEvents:100000, dailyNotes:5000, protocolEvents:5000 };
+const IMPORT_LIMITS = { protocols:100, medications:500, phases:2000, intakeActions:50000, intakeEvents:100000, dailyNotes:5000, dailySymptoms:5000, protocolEvents:5000 };
 
 
 function openDB() {
@@ -54,7 +55,10 @@ function openDB() {
       if (!db.objectStoreNames.contains(STORES.DAILY_NOTES)) {
         const s = db.createObjectStore(STORES.DAILY_NOTES, { keyPath: 'id' });
         s.createIndex('date', 'date', { unique: false });
-        s.createIndex('protocolId', 'protocolId', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(STORES.DAILY_SYMPTOMS)) {
+        const s = db.createObjectStore(STORES.DAILY_SYMPTOMS, { keyPath: 'id' });
+        s.createIndex('date', 'date', { unique: false });
       }
       if (!db.objectStoreNames.contains(STORES.PROTOCOL_EVENTS)) {
         const s = db.createObjectStore(STORES.PROTOCOL_EVENTS, { keyPath: 'id' });
@@ -113,20 +117,24 @@ const DB = {
   async getIntakeEvents(){ return getAll(STORES.INTAKE_EVENTS); },
   async getDailyNotes(){ return getAll(STORES.DAILY_NOTES); },
   async saveDailyNote(n){ return putItem(STORES.DAILY_NOTES,n); },
+  async getDailySymptoms(){ return getAll(STORES.DAILY_SYMPTOMS); },
+  async saveDailySymptoms(s){ return putItem(STORES.DAILY_SYMPTOMS,s); },
+  async deleteDailySymptoms(id){ return deleteItem(STORES.DAILY_SYMPTOMS,id); },
   async getProtocolEvents(){ return getAll(STORES.PROTOCOL_EVENTS); },
   async saveProtocolEvent(ev){ return putItem(STORES.PROTOCOL_EVENTS,ev); },
   async deleteProtocolEvent(id){ return deleteItem(STORES.PROTOCOL_EVENTS,id); },
   async toggleProtocolEventCompleted(id){ const all=await getAll(STORES.PROTOCOL_EVENTS); const ev=all.find(e=>e.id===id); if(!ev) return; ev.completed=!ev.completed; ev.updatedAt=new Date().toISOString(); await putItem(STORES.PROTOCOL_EVENTS,ev); },
 
   async exportAll() {
-    const [protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents] = await Promise.all([
-      getAll(STORES.PROTOCOLS),getAll(STORES.MEDICATIONS),getAll(STORES.PHASES),getAll(STORES.INTAKE_ACTIONS),getAll(STORES.INTAKE_EVENTS),getAll(STORES.DAILY_NOTES),getAll(STORES.PROTOCOL_EVENTS)
+    const [protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, dailySymptoms, protocolEvents] = await Promise.all([
+      getAll(STORES.PROTOCOLS),getAll(STORES.MEDICATIONS),getAll(STORES.PHASES),getAll(STORES.INTAKE_ACTIONS),getAll(STORES.INTAKE_EVENTS),getAll(STORES.DAILY_NOTES),getAll(STORES.DAILY_SYMPTOMS),getAll(STORES.PROTOCOL_EVENTS)
     ]);
-    return { app:'Luma', version:'3.4.2', exportedAt:new Date().toISOString(), protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, protocolEvents, settings:{} };
+    return { app:'Luma', version:'3.4.3', exportedAt:new Date().toISOString(), protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, dailySymptoms, protocolEvents, settings:{} };
   },
   validateImportData(data){
     if (!data || typeof data !== 'object') return {ok:false,error:'Fichier JSON invalide'};
-    const version = String(data.version || '2.0');
+    const version = String(data.version || '');
+    if (data.app !== 'Luma' || version !== '3.4.3') return { ok:false, error:'Format d’import incompatible avec Luma V3.4.3.' };
     const meds = data.medications || []; const phases = data.phases || []; const actions = data.intakeActions || [];
     if (![meds,phases,actions].every(Array.isArray)) return {ok:false,error:'Structure JSON invalide'};
     const protocols = Array.isArray(data.protocols) ? data.protocols : [];
@@ -149,7 +157,12 @@ const DB = {
       for (const m of meds) { if (!m.protocolId || !protocolIds.has(m.protocolId)) return {ok:false,error:'medication.protocolId invalide'}; }
       for (const p of phases) { if (!p.protocolId || !protocolIds.has(p.protocolId)) return {ok:false,error:'phase.protocolId invalide'}; }
     }
-    for (const n of (data.dailyNotes||[])) { if(!n.date||!DATE_RE.test(n.date)) return {ok:false,error:'dailyNotes.date invalide'}; const s=n.symptoms||{}; for(const k of ['nausea','fatigue','pain','headache','dizziness','mood','sleep','bleeding','other']){const v=Number(s[k]??0); if(v<0||v>3) return {ok:false,error:'Symptôme hors plage 0-3'};} }
+    for (const n of (data.dailyNotes||[])) { if(!n.date||!DATE_RE.test(n.date)) return {ok:false,error:'dailyNotes.date invalide'}; if(typeof n.freeNote!=='string') return {ok:false,error:'dailyNotes.freeNote invalide'}; }
+    for (const s of (data.dailySymptoms||[])) {
+      if(!s.date||!DATE_RE.test(s.date)) return {ok:false,error:'dailySymptoms.date invalide'};
+      if(typeof s.otherSymptomLabel!=='string') return {ok:false,error:'dailySymptoms.otherSymptomLabel invalide'};
+      for(const k of ['nausea','fatigue','pain','headache','dizziness','mood','sleep','bleeding','other']){const v=Number(s.symptoms?.[k]??0); if(![0,1,2,3].includes(v)) return {ok:false,error:'Symptôme hors plage 0-3'};}
+    }
     for (const e of (data.intakeEvents||[])) { if(!e.type || !VALID_INTAKE_EVENT_TYPE.has(e.type)) return {ok:false,error:'Type intakeEvent invalide'}; }
     if (version.startsWith('3')) {
       for (const ev of (data.protocolEvents || [])) if (!ev.protocolId || !protocolIds.has(ev.protocolId)) return {ok:false,error:'Événement protocole invalide'};
@@ -160,27 +173,6 @@ const DB = {
     const backup = await DB.exportAll();
     const v = DB.validateImportData(data); if (!v.ok) throw new Error(v.error);
     const incoming = structuredClone(data);
-    if (!Array.isArray(incoming.protocols) || incoming.protocols.length === 0) {
-      const defaultProtocol = { id: uid(), name: DEFAULT_PROTOCOL_NAME, type:'free', startDate: incoming.phases?.map(p=>p.startDate).filter(Boolean).sort()[0] || todayStr(), status:'active', notes:'', createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(), isDefault:true };
-      incoming.protocols = [defaultProtocol];
-      incoming.medications = (incoming.medications||[]).map(m=>({...m, protocolId:defaultProtocol.id}));
-      incoming.phases = (incoming.phases||[]).map(p=>({...p, protocolId:defaultProtocol.id}));
-    }
-    const notesByDate = new Map();
-    for (const note of (incoming.dailyNotes || [])) {
-      const date = note.date || note.id;
-      if (!date) continue;
-      const curr = notesByDate.get(date);
-      const symptoms = note.symptoms || {};
-      if (!curr) notesByDate.set(date, { id: date, date, symptoms: { nausea:0,fatigue:0,pain:0,headache:0,dizziness:0,mood:0,sleep:0,bleeding:0,other:0, ...symptoms }, otherSymptomLabel: note.otherSymptomLabel || '', freeNote: note.freeNote || '', createdAt: note.createdAt || new Date().toISOString(), updatedAt: note.updatedAt || new Date().toISOString() });
-      else {
-        for (const k of ['nausea','fatigue','pain','headache','dizziness','mood','sleep','bleeding','other']) curr.symptoms[k] = Math.max(Number(curr.symptoms[k]||0), Number(symptoms[k]||0));
-        if (note.freeNote) curr.freeNote = curr.freeNote ? `${curr.freeNote}\n---\n${note.freeNote}` : note.freeNote;
-        curr.createdAt = [curr.createdAt, note.createdAt].filter(Boolean).sort()[0] || curr.createdAt;
-        curr.updatedAt = [curr.updatedAt, note.updatedAt].filter(Boolean).sort().slice(-1)[0] || curr.updatedAt;
-      }
-    }
-    incoming.dailyNotes = [...notesByDate.values()];
     const protocolIds = new Set((incoming.protocols||[]).map(p=>p.id));
     const medIds = new Set((incoming.medications||[]).map(m=>m.id));
     incoming.medications = (incoming.medications||[]).map(m=>({ ...m, protocolId: protocolIds.has(m.protocolId) ? m.protocolId : (incoming.protocols[0]?.id || null) }));
@@ -193,6 +185,7 @@ const DB = {
       for (const a of incoming.intakeActions || []) await putItem(STORES.INTAKE_ACTIONS,a);
       for (const e of incoming.intakeEvents || []) await putItem(STORES.INTAKE_EVENTS,e);
       for (const n of incoming.dailyNotes || []) await putItem(STORES.DAILY_NOTES,n);
+      for (const s of incoming.dailySymptoms || []) await putItem(STORES.DAILY_SYMPTOMS,s);
       for (const e of incoming.protocolEvents || []) await putItem(STORES.PROTOCOL_EVENTS,e);
     } catch (err) {
       console.error('Import failed, restore backup', err);
@@ -203,6 +196,7 @@ const DB = {
       for (const a of backup.intakeActions || []) await putItem(STORES.INTAKE_ACTIONS,a);
       for (const e of backup.intakeEvents || []) await putItem(STORES.INTAKE_EVENTS,e);
       for (const n of backup.dailyNotes || []) await putItem(STORES.DAILY_NOTES,n);
+      for (const s of backup.dailySymptoms || []) await putItem(STORES.DAILY_SYMPTOMS,s);
       for (const e of backup.protocolEvents || []) await putItem(STORES.PROTOCOL_EVENTS,e);
       throw err;
     }

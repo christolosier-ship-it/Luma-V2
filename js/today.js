@@ -3,8 +3,8 @@ const TodayScreen = {
     const dateStr = todayStr();
     const screen = document.getElementById('screen-today');
     try {
-      const [medications, phases, allActions, protocols, protocolEvents, notes] = await Promise.all([
-        DB.getMedications(), DB.getPhases(), DB.getAllIntakeActions(), DB.getProtocols(), DB.getProtocolEvents(), DB.getDailyNotes()
+      const [medications, phases, allActions, protocols, protocolEvents, notes, symptomsEntries] = await Promise.all([
+        DB.getMedications(), DB.getPhases(), DB.getAllIntakeActions(), DB.getProtocols(), DB.getProtocolEvents(), DB.getDailyNotes(), DB.getDailySymptoms()
       ]);
       const activeProtocolIds = new Set(protocols.filter(p => p.status === 'active').map(p => p.id));
       const filteredMeds = medications.filter(m => !m.protocolId || activeProtocolIds.has(m.protocolId));
@@ -13,7 +13,8 @@ const TodayScreen = {
       const events = Intakes.generateForDate(filteredMeds, filteredPhases, dateStr);
       const intakes = Intakes.sortForToday(Intakes.mergeWithActions(events, actionsMap), dateStr);
       const dayProtocolEvents = protocolEvents.filter(e => e.date === dateStr && activeProtocolIds.has(e.protocolId)).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
-      const dayNote = notes.find(n=>n.date===dateStr) || {id:dateStr,date:dateStr,symptoms:{nausea:0,fatigue:0,pain:0,headache:0,dizziness:0,mood:0,sleep:0,bleeding:0,other:0},otherSymptomLabel:'',freeNote:''};
+      const dayNote = notes.find(n=>n.date===dateStr) || {id:dateStr,date:dateStr,freeNote:''};
+      const daySymptoms = symptomsEntries.find(n=>n.date===dateStr) || {id:dateStr,date:dateStr,symptoms:getDefaultSymptoms(),otherSymptomLabel:''};
 
       const symptomFields = [
         { key:'nausea', label:'Nausée' },
@@ -24,7 +25,7 @@ const TodayScreen = {
         { key:'mood', label:'Humeur' },
         { key:'sleep', label:'Sommeil' },
         { key:'bleeding', label:'Saignement' },
-        { key:'other', label: dayNote.otherSymptomLabel || 'Autre symptôme' }
+        { key:'other', label: daySymptoms.otherSymptomLabel || 'Autre symptôme' }
       ];
       const symptomOptions = [
         { value:0, label:'0 - aucun' },
@@ -32,7 +33,7 @@ const TodayScreen = {
         { value:2, label:'2 - modéré' },
         { value:3, label:'3 - fort' }
       ];
-      const symptomSelects = symptomFields.map(field=>`<label>${escHtml(field.label)}<select id='n-${escHtml(field.key)}' class='form-input'>${symptomOptions.map(opt=>`<option value='${opt.value}' ${Number(dayNote.symptoms?.[field.key]??0)===opt.value?'selected':''}>${opt.label}</option>`).join('')}</select></label>`).join('');
+      const symptomSelects = symptomFields.map(field=>`<label>${escHtml(field.label)}<select id='n-${escHtml(field.key)}' class='form-input'>${symptomOptions.map(opt=>`<option value='${opt.value}' ${Number(daySymptoms.symptoms?.[field.key]??0)===opt.value?'selected':''}>${opt.label}</option>`).join('')}</select></label>`).join('');
 
       const isToday = dateStr === todayStr();
       const dateLabel = isToday ? 'Aujourd\'hui' : capitalize(formatDateFR(dateStr));
@@ -43,16 +44,16 @@ const TodayScreen = {
       const nowMinutes = new Date().getHours()*60 + new Date().getMinutes();
       const nextAction = TodayScreen._getNextAction(intakes, dayProtocolEvents, nowMinutes);
       const nextActionText = nextAction ? `${nextAction.timeLabel} — ${nextAction.title}` : 'Aucune action prévue aujourd’hui.';
-      const hasNoteData = Boolean((dayNote.freeNote||'').trim()) || Object.values(dayNote.symptoms||{}).some(v=>Number(v)>0);
-      const noteSummary = Object.entries({Fatigue:dayNote.symptoms?.fatigue||0,Nausée:dayNote.symptoms?.nausea||0,Douleur:dayNote.symptoms?.pain||0}).filter(([,v])=>Number(v)>0).map(([k,v])=>`${k} ${v}`).join(' · ');
-      const noteClosedSummary = `${noteSummary}${hasNoteData && dayNote.freeNote ? (noteSummary?' · ':'') + 'Note renseignée' : ''}`;
+      const hasNoteData = hasFreeNote(dayNote);
+      const hasSymptomsData = hasPositiveSymptoms(daySymptoms);
+      const symptomsSummary = symptomsToText(daySymptoms, true);
 
       screen.innerHTML = `<div class="today-header"><div class="today-date-label">${dateLabel}</div><div class="today-count">${intakes.length} prise${intakes.length!==1?'s':''}${intakes.length>0?` · ${takenCount} prise${takenCount!==1?'s':''} effectuée${takenCount!==1?'s':''}`:''}</div></div>
       <div class='card today-summary'><div class='today-summary-title'>Résumé aujourd’hui</div><div class='today-count'>${plannedCount} prises prévues · ${takenCount} réalisées · ${lateCount} en retard · ${eventCount} événement${eventCount!==1?'s':''}</div><div class='today-count'>Prochaine action : ${escHtml(nextActionText)}</div></div>
       <div class="section-title" style="margin-top:6px;font-size:1.1rem;">Prises du jour</div>
       ${intakes.length===0?TodayScreen._emptyState(filteredMeds.length):intakes.map(i=>TodayScreen._intakeCard(i,dateStr)).join('')}
       <div class="section-title" style="margin-top:12px;font-size:1.1rem;">Événements du jour</div>
-      ${dayProtocolEvents.length?dayProtocolEvents.map(ev=>`<div class="card card-sm"><div style="display:flex;justify-content:space-between;align-items:center;"><strong>${escHtml(ev.time||'—:—')} — ${escHtml(ev.title)}</strong><span>${ev.completed?'✓ Terminé':'À faire'}</span></div><div style="font-size:.82rem;color:var(--text-soft);">${escHtml(ev.type||'autre')}</div><button class="btn-settings btn-toggle-event" data-id="${escHtml(ev.id)}" style="margin-top:8px;">${ev.completed?'Réouvrir':'Terminer'}</button></div>`).join(''):'<div class="card card-sm">Aucun événement protocole ce jour.</div>'}<details class='card card-sm' ${hasNoteData?'open':''}><summary><strong>Note du jour</strong>${noteClosedSummary?`<span class='today-count' style='display:block;'>${escHtml(noteClosedSummary)}</span>`:''}</summary><div style='display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;'>${symptomSelects}</div><textarea id='n-free' class='form-input' style='margin-top:8px;' placeholder='Note libre'>${escHtml(dayNote.freeNote||'')}</textarea><button class='btn-settings' id='btn-save-note' style='margin-top:8px;'>Enregistrer la note</button><div style='font-size:.8rem;color:var(--text-soft);margin-top:8px;'>Ce journal ne remplace pas un avis médical. En cas de doute ou de symptôme important, contactez un professionnel de santé.</div></details>`;
+      ${dayProtocolEvents.length?dayProtocolEvents.map(ev=>`<div class="card card-sm"><div style="display:flex;justify-content:space-between;align-items:center;"><strong>${escHtml(ev.time||'—:—')} — ${escHtml(ev.title)}</strong><span>${ev.completed?'✓ Terminé':'À faire'}</span></div><div style="font-size:.82rem;color:var(--text-soft);">${escHtml(ev.type||'autre')}</div><button class="btn-settings btn-toggle-event" data-id="${escHtml(ev.id)}" style="margin-top:8px;">${ev.completed?'Réouvrir':'Terminer'}</button></div>`).join(''):'<div class="card card-sm">Aucun événement protocole ce jour.</div>'}<details class='card card-sm' ${hasNoteData?'open':''}><summary><strong>Note du jour</strong>${hasNoteData?`<span class='today-count' style='display:block;'>Note renseignée</span>`:''}</summary><textarea id='n-free' class='form-input' style='margin-top:8px;' placeholder='Note libre'>${escHtml(dayNote.freeNote||'')}</textarea><button class='btn-settings' id='btn-save-note' style='margin-top:8px;'>Enregistrer la note</button></details><details class='card card-sm' ${hasSymptomsData?'open':''}><summary><strong>Symptômes du jour</strong>${symptomsSummary?`<span class='today-count' style='display:block;'>${escHtml(symptomsSummary)}</span>`:''}</summary><div style='display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px;'>${symptomSelects}</div><input id='n-other-label' class='form-input' style='margin-top:8px;' placeholder='Libellé autre symptôme' value='${escHtml(daySymptoms.otherSymptomLabel||'')}'/><button class='btn-settings' id='btn-save-symptoms' style='margin-top:8px;'>Enregistrer les symptômes</button><div style='font-size:.8rem;color:var(--text-soft);margin-top:8px;'>Ce journal ne remplace pas un avis médical. En cas de doute ou de symptôme important, contactez un professionnel de santé.</div></details>`;
 
       screen.querySelectorAll('.btn-action').forEach(btn => btn.addEventListener('click', async (e) => {
         e.stopPropagation();

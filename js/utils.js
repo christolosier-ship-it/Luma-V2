@@ -112,3 +112,44 @@ function statusLabelFR(status) {
   };
   return labels[status] || String(status || 'Inconnu');
 }
+
+function getDefaultSymptoms() {
+  return {
+    nausea: 0,
+    fatigue: 0,
+    pain: 0,
+    headache: 0,
+    dizziness: 0,
+    mood: 0,
+    sleep: 0,
+    bleeding: 0,
+    other: 0,
+  };
+}
+
+function hasFreeNote(note) {
+  return Boolean((note?.freeNote || '').trim());
+}
+
+function hasPositiveSymptoms(symptomEntry) {
+  return Object.values(symptomEntry?.symptoms || {}).some((v) => Number(v) > 0);
+}
+
+function symptomsToText(symptomEntry, onlyPositive = true) {
+  if (!symptomEntry?.symptoms) return '';
+  const labels = {
+    nausea: 'Nausée',
+    fatigue: 'Fatigue',
+    pain: 'Douleur',
+    headache: 'Maux de tête',
+    dizziness: 'Vertiges',
+    mood: 'Humeur',
+    sleep: 'Sommeil',
+    bleeding: 'Saignement',
+    other: symptomEntry.otherSymptomLabel || 'Autre',
+  };
+  return Object.entries(labels)
+    .filter(([key]) => !onlyPositive || Number(symptomEntry.symptoms[key] ?? 0) > 0)
+    .map(([key, label]) => `${label} ${Number(symptomEntry.symptoms[key] ?? 0)}`)
+    .join(' · ');
+}
