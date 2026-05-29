@@ -199,5 +199,5 @@ function weekDatesMonday(dateStr) {
 }
 
 function dosageModeLabel(mode) {
-  return mode === 'variable' ? 'Dosage variable' : 'Traitement simple';
+  return mode === 'variable' ? 'Traitement à dosage variable' : 'Traitement simple';
 }

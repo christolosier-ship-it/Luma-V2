@@ -40,7 +40,7 @@ const Intakes = {
       for (const phase of medPhases) {
         if (!dateInRange(dateStr, phase.startDate, phase.endDate)) continue;
         const dosage = dosageMode === 'variable' ? variableDosage : (phase.dosage || '');
-        const times = Array.isArray(phase.times) ? phase.times : [];
+        const times = dosageMode === 'variable' ? normalizeTimes(phase.times || []).slice(0, 1) : (Array.isArray(phase.times) ? phase.times : []);
         for (const time of times) {
           events.push({
             key: Intakes.makeKey(med.id, phase.id, dateStr, time),
@@ -89,7 +89,7 @@ const Intakes = {
   },
 
   /**
-   * For calendar dot display: which dates in a given month have intakes?
+   * Return dates in a month that contain generated intakes.
    */
   getDatesWithIntakesInMonth(medications, phases, year, month, dosageOverrides = []) {
     const dates = new Set();

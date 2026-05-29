@@ -111,6 +111,7 @@ const DB = {
   async saveProtocol(p) { return putItem(STORES.PROTOCOLS, p); },
   async deleteProtocol(id){ return deleteItem(STORES.PROTOCOLS,id); },
   async getMedications() { return getAll(STORES.MEDICATIONS); },
+  async getMedication(id) { return (await getAll(STORES.MEDICATIONS)).find(m => m.id === id) || null; },
   async saveMedication(med) { return putItem(STORES.MEDICATIONS, { ...med, dosageMode: med.dosageMode === 'variable' ? 'variable' : 'fixed' }); },
   async deleteMedication(id) { return deleteItem(STORES.MEDICATIONS, id); },
   async getPhases() { return getAll(STORES.PHASES); },
@@ -142,12 +143,12 @@ const DB = {
       getAll(STORES.PROTOCOLS),getAll(STORES.MEDICATIONS),getAll(STORES.PHASES),getAll(STORES.DOSAGE_OVERRIDES),getAll(STORES.INTAKE_ACTIONS),getAll(STORES.INTAKE_EVENTS),getAll(STORES.DAILY_NOTES),getAll(STORES.DAILY_SYMPTOMS),getAll(STORES.PROTOCOL_EVENTS)
     ]);
     const medications = medicationsRaw.map(m => ({ ...m, dosageMode: m.dosageMode === 'variable' ? 'variable' : 'fixed' }));
-    return { app:'Luma', version:'3.5', exportedAt:new Date().toISOString(), protocols, medications, phases, dosageOverrides, intakeActions, intakeEvents, dailyNotes, dailySymptoms, protocolEvents, settings:{} };
+    return { app:'Luma', version:'3.5.1', exportedAt:new Date().toISOString(), protocols, medications, phases, dosageOverrides, intakeActions, intakeEvents, dailyNotes, dailySymptoms, protocolEvents, settings:{} };
   },
   validateImportData(data){
     if (!data || typeof data !== 'object') return {ok:false,error:'Fichier JSON invalide'};
     const version = String(data.version || '');
-    if (data.app !== 'Luma' || version !== '3.5') return { ok:false, error:'Format d’import incompatible avec Luma V3.5.' };
+    if (data.app !== 'Luma' || version !== '3.5.1') return { ok:false, error:'Format d’import incompatible avec Luma V3.5.1.' };
     const required=['protocols','medications','phases','dosageOverrides','intakeActions','intakeEvents','dailyNotes','dailySymptoms','protocolEvents'];
     for (const k of required) if (!Array.isArray(data[k])) return {ok:false,error:`${k} doit être un tableau`};
     const meds = data.medications; const phases = data.phases; const dosageOverrides = data.dosageOverrides; const actions = data.intakeActions; const protocols = data.protocols;

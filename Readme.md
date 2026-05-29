@@ -1,7 +1,7 @@
 <div align="center">
   <img src="icons/icone_512x512.png" alt="Icône Luma" width="128" height="128" />
 
-# Luma V3.5 — Dosages variables
+# Luma V3.5.1 — Ergonomie dosage variable
 
 ### Protocole & Journal
 
@@ -9,7 +9,7 @@
 
 <br>
 
-![Version](https://img.shields.io/badge/version-3.5-2494F2?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-3.5.1-2494F2?style=for-the-badge)
 ![PWA](https://img.shields.io/badge/PWA-offline--first-31C7C4?style=for-the-badge)
 ![Vanilla JS](https://img.shields.io/badge/Vanilla-JS-F7DF1E?style=for-the-badge&logo=javascript&logoColor=000)
 ![IndexedDB](https://img.shields.io/badge/Storage-IndexedDB-1266C3?style=for-the-badge)
@@ -53,7 +53,7 @@ Luma fonctionne **sans compte**, **sans cloud**, **sans serveur** et **sans publ
 | **Timeline verticale** | Chronologie moderne des prises, événements et notes, avec rail vertical HTML/CSS. |
 | **Journal** | Consultation par période, statistiques d'observance, symptômes, notes et exports. |
 | **Protocoles** | Organisation des traitements par protocole avec statuts actif, pause, terminé ou archivé. |
-| **Traitements** | Gestion des médicaments, phases et heures de prise. |
+| **Traitements** | Vue hiérarchique par protocole, avec médicaments rangés dans leur protocole et actions contextuelles. |
 | **Événements** | Rendez-vous, examens, pharmacie, prises de sang, étapes personnalisées. |
 | **Exports** | Sauvegarde JSON, export CSV compatible Excel et rapport imprimable. |
 | **PWA offline** | Application installable, utilisable après premier chargement même sans réseau. |
@@ -91,7 +91,7 @@ Statuts possibles des prises :
 
 ### Timeline verticale
 
-La Timeline de Luma V3.5 est une vraie chronologie verticale HTML/CSS, conçue pour lire le protocole comme un parcours.
+La Timeline de Luma V3.5.1 est une vraie chronologie verticale HTML/CSS, conçue pour lire le protocole comme un parcours.
 
 Elle affiche :
 
@@ -139,7 +139,14 @@ Il affiche notamment :
 
 ### Traitements et protocoles
 
-L'écran Traitements permet de gérer l'organisation complète du suivi.
+L'écran Traitements permet de gérer l'organisation complète du suivi avec une organisation hiérarchique : chaque protocole est affiché comme une carte qui contient directement ses médicaments. Il n'y a plus de liste compacte séparée ni de recherche dédiée dans cette vue.
+
+Le gros bouton bleu **+** centralise les créations principales :
+
+- ajouter un protocole ;
+- ajouter un traitement simple ;
+- ajouter un traitement à dosage variable ;
+- ajouter un événement de protocole.
 
 #### Protocoles
 
@@ -158,8 +165,13 @@ Chaque médicament est rattaché à un protocole. Une phase définit :
 
 - une date de début ;
 - une date de fin optionnelle ;
-- une ou plusieurs heures de prise ;
+- une ou plusieurs heures de prise pour un traitement simple ;
+- un seul **horaire de prise** pour un traitement à dosage variable ;
 - un lien avec le médicament et le protocole.
+
+Pour un **traitement à dosage variable**, l'horaire est saisi avec un sélecteur natif `input type="time"` et Luma ne génère au maximum qu'une prise par jour. Le dosage est ensuite renseigné dans le calendrier de dosage, sans suggestion automatique.
+
+Le calendrier de dosage désactive les jours hors période active du traitement. Les actions de semaine disponibles sont **Dupliquer vers semaine suivante** et **Copier depuis semaine précédente**.
 
 Luma crée automatiquement un protocole par défaut nommé **Traitement principal** si aucun protocole n'existe.
 
@@ -276,17 +288,15 @@ Luma-3.4/
     ├── journal.js
     ├── medications.js
     ├── settings.js
-    ├── modal.js
-    └── calendar.js
+    └── modal.js
 ```
 
-> `calendar.js` peut subsister comme ancien module ou reliquat technique, mais la navigation V3.4 s'articule autour d'Aujourd'hui, Timeline, Journal, Traitements et Réglages.
 
 ---
 
 ## Modèle de données
 
-Luma V3.5 utilise la base locale :
+Luma V3.5.1 utilise la base locale :
 
 ```txt
 luma_db
@@ -339,12 +349,12 @@ L'export JSON est la sauvegarde complète de l'application. Il contient toutes l
 Nom généré :
 
 ```txt
-luma-v3.5-backup-YYYY-MM-DD.json
+luma-v3.5.1-backup-YYYY-MM-DD.json
 ```
 
 ### Import JSON
 
-L'import accepte les structures historiques compatibles et valide les données avant écriture.
+L'import accepte strictement le format V3.5.1 et refuse clairement les sauvegardes incompatibles.
 
 Avant un import valide, Luma télécharge automatiquement une sauvegarde de sécurité :
 
@@ -442,7 +452,7 @@ Luma cherche à rester :
 
 <br>
 
-**Luma V3.5**
+**Luma V3.5.1**
 _Un carnet de bord personnel santé, rangé comme une trousse bleue et calme._
 
 </div>
