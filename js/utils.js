@@ -177,3 +177,27 @@ function protocolStatusLabelFR(status) {
   const labels = { active: 'Actif', paused: 'En pause', completed: 'Terminé', archived: 'Archivé' };
   return labels[status] || 'Actif';
 }
+
+
+function startOfWeekMonday(dateStr) {
+  const d = dateStr ? fromDateStr(dateStr) : new Date();
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return toDateStr(d);
+}
+
+function addDays(dateStr, days) {
+  const d = fromDateStr(dateStr);
+  d.setDate(d.getDate() + days);
+  return toDateStr(d);
+}
+
+function weekDatesMonday(dateStr) {
+  const start = startOfWeekMonday(dateStr);
+  return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+}
+
+function dosageModeLabel(mode) {
+  return mode === 'variable' ? 'Dosage variable' : 'Traitement simple';
+}

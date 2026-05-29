@@ -1,5 +1,5 @@
 const DB_NAME = 'luma_db';
-const DB_VERSION = 7;
+const DB_VERSION = 8;
 
 const STORES = {
   PROTOCOLS: 'protocols',
@@ -10,6 +10,7 @@ const STORES = {
   DAILY_NOTES: 'dailyNotes',
   DAILY_SYMPTOMS: 'dailySymptoms',
   PROTOCOL_EVENTS: 'protocolEvents',
+  DOSAGE_OVERRIDES: 'dosageOverrides',
 };
 
 let _db = null;
@@ -19,7 +20,7 @@ const VALID_PROTOCOL_STATUS = new Set(['active','paused','completed','archived']
 const VALID_ACTION_STATUS = new Set(['taken','skipped','snoozed']);
 const VALID_INTAKE_EVENT_TYPE = new Set(['taken','skipped','snoozed','undo','missed','edited','noteAdded']);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const IMPORT_LIMITS = { protocols:100, medications:500, phases:2000, intakeActions:50000, intakeEvents:100000, dailyNotes:5000, dailySymptoms:5000, protocolEvents:5000 };
+const IMPORT_LIMITS = { protocols:100, medications:500, phases:2000, dosageOverrides:50000, intakeActions:50000, intakeEvents:100000, dailyNotes:5000, dailySymptoms:5000, protocolEvents:5000 };
 
 
 function openDB() {
@@ -66,6 +67,12 @@ function openDB() {
         s.createIndex('date', 'date', { unique: false });
         s.createIndex('completed', 'completed', { unique: false });
       }
+      if (!db.objectStoreNames.contains(STORES.DOSAGE_OVERRIDES)) {
+        const s = db.createObjectStore(STORES.DOSAGE_OVERRIDES, { keyPath: 'id' });
+        s.createIndex('medicationId', 'medicationId', { unique: false });
+        s.createIndex('protocolId', 'protocolId', { unique: false });
+        s.createIndex('date', 'date', { unique: false });
+      }
     };
     req.onsuccess = (e) => { _db = e.target.result; resolve(_db); };
     req.onerror = () => reject(req.error);
@@ -81,7 +88,7 @@ async function ensureDefaultProtocolAndLinks() {
   const [protocols, meds, phases] = await Promise.all([getAll(STORES.PROTOCOLS), getAll(STORES.MEDICATIONS), getAll(STORES.PHASES)]);
   const nowIso = new Date().toISOString();
   let defaultProtocol = protocols.find((p) => p.isDefault) || protocols[0] || null;
-  const medsNeed = meds.some((m) => !m.protocolId);
+  const medsNeed = meds.some((m) => !m.protocolId || !m.dosageMode);
   const phasesNeed = phases.some((p) => !p.protocolId);
   if (!defaultProtocol) {
     defaultProtocol = { id: uid(), name: DEFAULT_PROTOCOL_NAME, type: 'free', startDate: todayStr(), status: 'active', notes: '', isDefault: true, createdAt: nowIso, updatedAt: nowIso };
@@ -93,7 +100,7 @@ async function ensureDefaultProtocolAndLinks() {
       defaultProtocol = { id: uid(), name: DEFAULT_PROTOCOL_NAME, type: 'free', startDate, status: 'active', notes: '', isDefault: true, createdAt: nowIso, updatedAt: nowIso };
       await putItem(STORES.PROTOCOLS, defaultProtocol);
     }
-    for (const med of meds) if (!med.protocolId) await putItem(STORES.MEDICATIONS, { ...med, protocolId: defaultProtocol.id });
+    for (const med of meds) if (!med.protocolId || !med.dosageMode) await putItem(STORES.MEDICATIONS, { ...med, protocolId: med.protocolId || defaultProtocol.id, dosageMode: med.dosageMode === 'variable' ? 'variable' : 'fixed' });
     for (const phase of phases) if (!phase.protocolId) await putItem(STORES.PHASES, { ...phase, protocolId: defaultProtocol.id });
   }
 }
@@ -104,9 +111,14 @@ const DB = {
   async saveProtocol(p) { return putItem(STORES.PROTOCOLS, p); },
   async deleteProtocol(id){ return deleteItem(STORES.PROTOCOLS,id); },
   async getMedications() { return getAll(STORES.MEDICATIONS); },
-  async saveMedication(med) { return putItem(STORES.MEDICATIONS, med); },
+  async saveMedication(med) { return putItem(STORES.MEDICATIONS, { ...med, dosageMode: med.dosageMode === 'variable' ? 'variable' : 'fixed' }); },
   async deleteMedication(id) { return deleteItem(STORES.MEDICATIONS, id); },
   async getPhases() { return getAll(STORES.PHASES); },
+  async getDosageOverrides() { return getAll(STORES.DOSAGE_OVERRIDES); },
+  async saveDosageOverride(override) { return putItem(STORES.DOSAGE_OVERRIDES, override); },
+  async deleteDosageOverride(id) { return deleteItem(STORES.DOSAGE_OVERRIDES, id); },
+  async getDosageOverridesByMedication(medicationId) { return (await getAll(STORES.DOSAGE_OVERRIDES)).filter(o => o.medicationId === medicationId); },
+  async deleteDosageOverridesByMedication(medicationId) { for (const o of await getAll(STORES.DOSAGE_OVERRIDES)) if (o.medicationId === medicationId) await deleteItem(STORES.DOSAGE_OVERRIDES, o.id); },
   async savePhase(phase) { return putItem(STORES.PHASES, phase); },
   async deletePhasesByMedication(medId) { for (const p of await getAll(STORES.PHASES)) if (p.medicationId === medId) await deleteItem(STORES.PHASES,p.id); },
   async getAllIntakeActions() { return getAll(STORES.INTAKE_ACTIONS); },
@@ -126,24 +138,25 @@ const DB = {
   async toggleProtocolEventCompleted(id){ const all=await getAll(STORES.PROTOCOL_EVENTS); const ev=all.find(e=>e.id===id); if(!ev) return; ev.completed=!ev.completed; ev.updatedAt=new Date().toISOString(); await putItem(STORES.PROTOCOL_EVENTS,ev); },
 
   async exportAll() {
-    const [protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, dailySymptoms, protocolEvents] = await Promise.all([
-      getAll(STORES.PROTOCOLS),getAll(STORES.MEDICATIONS),getAll(STORES.PHASES),getAll(STORES.INTAKE_ACTIONS),getAll(STORES.INTAKE_EVENTS),getAll(STORES.DAILY_NOTES),getAll(STORES.DAILY_SYMPTOMS),getAll(STORES.PROTOCOL_EVENTS)
+    const [protocols, medicationsRaw, phases, dosageOverrides, intakeActions, intakeEvents, dailyNotes, dailySymptoms, protocolEvents] = await Promise.all([
+      getAll(STORES.PROTOCOLS),getAll(STORES.MEDICATIONS),getAll(STORES.PHASES),getAll(STORES.DOSAGE_OVERRIDES),getAll(STORES.INTAKE_ACTIONS),getAll(STORES.INTAKE_EVENTS),getAll(STORES.DAILY_NOTES),getAll(STORES.DAILY_SYMPTOMS),getAll(STORES.PROTOCOL_EVENTS)
     ]);
-    return { app:'Luma', version:'3.4.4', exportedAt:new Date().toISOString(), protocols, medications, phases, intakeActions, intakeEvents, dailyNotes, dailySymptoms, protocolEvents, settings:{} };
+    const medications = medicationsRaw.map(m => ({ ...m, dosageMode: m.dosageMode === 'variable' ? 'variable' : 'fixed' }));
+    return { app:'Luma', version:'3.5', exportedAt:new Date().toISOString(), protocols, medications, phases, dosageOverrides, intakeActions, intakeEvents, dailyNotes, dailySymptoms, protocolEvents, settings:{} };
   },
   validateImportData(data){
     if (!data || typeof data !== 'object') return {ok:false,error:'Fichier JSON invalide'};
     const version = String(data.version || '');
-    if (data.app !== 'Luma' || version !== '3.4.4') return { ok:false, error:'Format d’import incompatible avec Luma V3.4.4.' };
-    const required=['protocols','medications','phases','intakeActions','intakeEvents','dailyNotes','dailySymptoms','protocolEvents'];
+    if (data.app !== 'Luma' || version !== '3.5') return { ok:false, error:'Format d’import incompatible avec Luma V3.5.' };
+    const required=['protocols','medications','phases','dosageOverrides','intakeActions','intakeEvents','dailyNotes','dailySymptoms','protocolEvents'];
     for (const k of required) if (!Array.isArray(data[k])) return {ok:false,error:`${k} doit être un tableau`};
-    const meds = data.medications; const phases = data.phases; const actions = data.intakeActions; const protocols = data.protocols;
+    const meds = data.medications; const phases = data.phases; const dosageOverrides = data.dosageOverrides; const actions = data.intakeActions; const protocols = data.protocols;
     for (const [k,max] of Object.entries(IMPORT_LIMITS)) {
             if (Array.isArray(data[k]) && data[k].length > max) return {ok:false,error:`Volume ${k} trop élevé`};
     }
     const protocolIds = new Set(protocols.map(p=>p.id));
     const medIds = new Set(meds.map(m=>m.id));
-    for (const m of meds) { if (!m.id || !m.name) return {ok:false,error:'Médicament incomplet'}; if (m.protocolId && !protocolIds.has(m.protocolId) && protocols.length) return {ok:false,error:'Médicament lié à un protocole inexistant'}; }
+    for (const m of meds) { if (!m.id || !m.name) return {ok:false,error:'Médicament incomplet'}; if (m.protocolId && !protocolIds.has(m.protocolId) && protocols.length) return {ok:false,error:'Médicament lié à un protocole inexistant'}; if (m.dosageMode && !['fixed','variable'].includes(m.dosageMode)) return {ok:false,error:'dosageMode invalide'}; }
     for (const p of phases) {
       if (!p.id || !p.medicationId || !p.startDate) return {ok:false,error:'Phase incomplète'};
       if (!medIds.has(p.medicationId)) return {ok:false,error:'Phase liée à un médicament inexistant'};
@@ -153,6 +166,14 @@ const DB = {
     for (const a of actions){ if(!VALID_ACTION_STATUS.has(a.status)) return {ok:false,error:'Statut action invalide'}; if(a.date && !DATE_RE.test(a.date)) return {ok:false,error:'Date action invalide'}; if(a.time && !isValidTimeHHMM(a.time)) return {ok:false,error:'Heure action invalide'}; }
     for (const m of meds) { if (!m.protocolId || !protocolIds.has(m.protocolId)) return {ok:false,error:'medication.protocolId invalide'}; }
     for (const p of phases) { if (!p.protocolId || !protocolIds.has(p.protocolId)) return {ok:false,error:'phase.protocolId invalide'}; }
+    for (const o of dosageOverrides) {
+      if (!o.id || !o.medicationId || !medIds.has(o.medicationId)) return {ok:false,error:'dosageOverride.medicationId invalide'};
+      if (!o.protocolId || !protocolIds.has(o.protocolId)) return {ok:false,error:'dosageOverride.protocolId invalide'};
+      if (!DATE_RE.test(String(o.date || ''))) return {ok:false,error:'dosageOverride.date invalide'};
+      if (typeof o.dosage !== 'string') return {ok:false,error:'dosageOverride.dosage invalide'};
+      if ('enabled' in o && typeof o.enabled !== 'boolean') return {ok:false,error:'dosageOverride.enabled invalide'};
+      if ('note' in o && typeof o.note !== 'string') return {ok:false,error:'dosageOverride.note invalide'};
+    }
     for (const n of (data.dailyNotes||[])) { if(!n.date||!DATE_RE.test(n.date)) return {ok:false,error:'dailyNotes.date invalide'}; if(typeof n.freeNote!=='string') return {ok:false,error:'dailyNotes.freeNote invalide'}; }
     for (const s of (data.dailySymptoms||[])) {
       if(!s.date||!DATE_RE.test(s.date)) return {ok:false,error:'dailySymptoms.date invalide'};
@@ -167,11 +188,14 @@ const DB = {
     const backup = await DB.exportAll();
     const v = DB.validateImportData(data); if (!v.ok) throw new Error(v.error);
     const incoming = structuredClone(data);
+    incoming.medications = (incoming.medications || []).map(m => ({ ...m, dosageMode: m.dosageMode === 'variable' ? 'variable' : 'fixed' }));
+    incoming.dosageOverrides = (incoming.dosageOverrides || []).map(o => ({ ...o, enabled: o.enabled !== false, note: typeof o.note === 'string' ? o.note : '' }));
     try {
       for (const s of Object.values(STORES)) await clearStore(s);
       for (const p of incoming.protocols || []) await putItem(STORES.PROTOCOLS,p);
       for (const m of incoming.medications || []) await putItem(STORES.MEDICATIONS,m);
       for (const p of incoming.phases || []) await putItem(STORES.PHASES,p);
+      for (const o of incoming.dosageOverrides || []) await putItem(STORES.DOSAGE_OVERRIDES,o);
       for (const a of incoming.intakeActions || []) await putItem(STORES.INTAKE_ACTIONS,a);
       for (const e of incoming.intakeEvents || []) await putItem(STORES.INTAKE_EVENTS,e);
       for (const n of incoming.dailyNotes || []) await putItem(STORES.DAILY_NOTES,n);
@@ -183,6 +207,7 @@ const DB = {
       for (const p of backup.protocols || []) await putItem(STORES.PROTOCOLS,p);
       for (const m of backup.medications || []) await putItem(STORES.MEDICATIONS,m);
       for (const p of backup.phases || []) await putItem(STORES.PHASES,p);
+      for (const o of backup.dosageOverrides || []) await putItem(STORES.DOSAGE_OVERRIDES,o);
       for (const a of backup.intakeActions || []) await putItem(STORES.INTAKE_ACTIONS,a);
       for (const e of backup.intakeEvents || []) await putItem(STORES.INTAKE_EVENTS,e);
       for (const n of backup.dailyNotes || []) await putItem(STORES.DAILY_NOTES,n);

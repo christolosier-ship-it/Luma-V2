@@ -20,12 +20,26 @@ const Intakes = {
    * Generate intake events for a given date, across all phases/medications.
    * Returns array of event objects (not yet merged with actions).
    */
-  generateForDate(medications, phases, dateStr) {
+  generateForDate(medications, phases, dateStr, dosageOverrides = []) {
     const events = [];
+    const overrideByMedicationDate = new Map(
+      (dosageOverrides || []).map((o) => [`${o.medicationId}|${o.date}`, o])
+    );
+
     for (const med of medications) {
+      const dosageMode = med.dosageMode === 'variable' ? 'variable' : 'fixed';
+      const override = overrideByMedicationDate.get(`${med.id}|${dateStr}`);
+      let variableDosage = '';
+
+      if (dosageMode === 'variable') {
+        variableDosage = String(override?.dosage || '').trim();
+        if (!override || override.enabled === false || !variableDosage) continue;
+      }
+
       const medPhases = phases.filter(p => p.medicationId === med.id);
       for (const phase of medPhases) {
         if (!dateInRange(dateStr, phase.startDate, phase.endDate)) continue;
+        const dosage = dosageMode === 'variable' ? variableDosage : (phase.dosage || '');
         const times = Array.isArray(phase.times) ? phase.times : [];
         for (const time of times) {
           events.push({
@@ -37,8 +51,9 @@ const Intakes = {
             time,
             medName: med.name,
             medType: med.type || '',
-            dosage: phase.dosage || '',
+            dosage,
             notes: phase.notes || '',
+            dosageMode,
           });
         }
       }
@@ -76,21 +91,12 @@ const Intakes = {
   /**
    * For calendar dot display: which dates in a given month have intakes?
    */
-  getDatesWithIntakesInMonth(medications, phases, year, month) {
+  getDatesWithIntakesInMonth(medications, phases, year, month, dosageOverrides = []) {
     const dates = new Set();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      for (const med of medications) {
-        const medPhases = phases.filter(p => p.medicationId === med.id);
-        for (const phase of medPhases) {
-          if (!dateInRange(dateStr, phase.startDate, phase.endDate)) continue;
-          if (phase.times && phase.times.length > 0) {
-            dates.add(dateStr);
-            break;
-          }
-        }
-      }
+      if (Intakes.generateForDate(medications, phases, dateStr, dosageOverrides).length) dates.add(dateStr);
     }
     return dates;
   },

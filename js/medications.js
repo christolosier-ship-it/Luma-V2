@@ -11,7 +11,7 @@ const MedicationsScreen = {
     const [medications, phases, protocols] = await Promise.all([DB.getMedications(),DB.getPhases(),DB.getProtocols()]);
 
     const listHtml = medications.length === 0
-      ? `<div class="empty-state empty-state-welcome"><div class="empty-icon">👋</div><h3>Bienvenue dans Luma</h3><p>Créez un protocole, ajoutez un médicament ou importez une sauvegarde pour commencer.</p><div class="empty-actions"><button class="btn-settings js-empty-add-protocol">Créer un protocole</button><button class="btn-settings js-empty-add-med">Ajouter un médicament</button><button class="btn-settings js-empty-import">Importer JSON</button></div></div>`
+      ? `<div class="empty-state empty-state-welcome"><div class="empty-icon">👋</div><h3>Bienvenue dans Luma</h3><p>Créez un protocole, ajoutez un médicament ou importez une sauvegarde pour commencer.</p><div class="empty-actions"><button class="btn-settings js-empty-add-protocol">Créer un protocole</button><button class="btn-settings js-empty-add-med">Ajouter traitement simple</button><button class="btn-settings js-empty-add-variable">Ajouter traitement à dosage variable</button><button class="btn-settings js-empty-import">Importer JSON</button></div></div>`
       : medications.map(med => {
           const medPhases = phases.filter(p => p.medicationId === med.id)
             .sort((a, b) => a.startDate.localeCompare(b.startDate));
@@ -28,7 +28,7 @@ const MedicationsScreen = {
 
     // Bind FAB
     screen.querySelector('#btn-add-med').addEventListener('click', () => {
-      MedicationsScreen.openForm(null, null, protocols);
+      MedicationsScreen.openAddMenu(protocols);
     });
 
     // Bind edit / delete buttons
@@ -38,7 +38,16 @@ const MedicationsScreen = {
         const medId = btn.dataset.medId;
         const med = medications.find(m => m.id === medId);
         const medPhases = phases.filter(p => p.medicationId === medId);
-        MedicationsScreen.openForm(med, medPhases, protocols);
+        (med?.dosageMode === 'variable' ? MedicationsScreen.openVariableForm(med, medPhases, protocols) : MedicationsScreen.openForm(med, medPhases, protocols));
+      });
+    });
+
+    screen.querySelectorAll('.btn-dosage-calendar').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const medId = btn.dataset.medId;
+        const med = medications.find(m => m.id === medId);
+        if (med) await MedicationsScreen.openDosageCalendar(med);
       });
     });
 
@@ -54,6 +63,7 @@ const MedicationsScreen = {
     screen.querySelector('#btn-add-protocol')?.addEventListener('click',()=>MedicationsScreen.openProtocolForm());
     screen.querySelector('.js-empty-add-protocol')?.addEventListener('click',()=>MedicationsScreen.openProtocolForm());
     screen.querySelector('.js-empty-add-med')?.addEventListener('click',()=>MedicationsScreen.openForm(null, null, protocols));
+    screen.querySelector('.js-empty-add-variable')?.addEventListener('click',()=>MedicationsScreen.openVariableForm(null, null, protocols));
     screen.querySelector('.js-empty-import')?.addEventListener('click', ()=>{ App.navigateTo('settings'); setTimeout(()=>document.getElementById('btn-import')?.click(), 50); });
     screen.querySelectorAll('.protocol-filter-pill').forEach(btn=>btn.addEventListener('click', async ()=>{ MedicationsScreen.protocolFilter = btn.dataset.filter; await MedicationsScreen.render(); }));
     screen.querySelector('#protocol-search')?.addEventListener('input', async (e)=>{ MedicationsScreen.searchQuery = e.target.value || ''; await MedicationsScreen.render(); });
@@ -64,6 +74,7 @@ const MedicationsScreen = {
   },
 
   _medCard(med, phases) {
+    const mode = med.dosageMode === 'variable' ? 'variable' : 'fixed';
     const phasesHtml = phases.length === 0
       ? '<div class="med-phase" style="color:var(--text-light);">Aucune phase définie</div>'
       : phases.map(p => {
@@ -73,7 +84,7 @@ const MedicationsScreen = {
           return `
             <div class="med-phase">
               <div class="med-phase-dates">${startFR} → ${endFR}</div>
-              <div class="med-phase-detail">${escHtml(p.dosage || "—")} · ${escHtml(times)}</div>
+              <div class="med-phase-detail">${mode === 'variable' ? 'Calendrier de dosage' : escHtml(p.dosage || "—")} · ${escHtml(times)}</div>
               ${p.notes ? `<div class="med-phase-detail" style="font-style:italic;">${escHtml(p.notes)}</div>` : ''}
             </div>
           `;
@@ -84,14 +95,14 @@ const MedicationsScreen = {
         <div class="med-card-header">
           <div class="med-info">
             <div class="med-name">${escHtml(med.name)}</div>
-            <div class="med-type">${escHtml(med.type || "")} · ${phases.length} phase${phases.length !== 1 ? 's' : ''}</div>
+            <div class="med-type">${escHtml(med.type || "")} · ${phases.length} phase${phases.length !== 1 ? 's' : ''} · ${escHtml(dosageModeLabel(mode))}</div>
           </div>
           <div class="med-actions-row">
             <button class="btn-icon btn-edit" data-med-id="${med.id}" title="Modifier">✎</button>
             <button class="btn-icon btn-delete" data-med-id="${med.id}" title="Supprimer">🗑</button>
           </div>
         </div>
-        <div class="med-phases">${phasesHtml}</div>
+        ${mode === 'variable' ? '<div style="margin:8px 0;"><span class="timeline-badge">Dosage variable</span></div>' : '<div style="margin:8px 0;"><span class="timeline-badge">Traitement simple</span></div>'}<div class="med-phases">${phasesHtml}</div>${mode === 'variable' ? `<button class="btn-settings btn-dosage-calendar" data-med-id="${escHtml(med.id)}" style="margin-top:8px;">Calendrier dosage</button>` : ''}
       </div>
     `;
   },
@@ -152,45 +163,45 @@ const MedicationsScreen = {
   _phaseBlockHtml(phase, index) {
     const times = phase.times || [];
     const timesHtml = times.map(t => `
-      <div class="time-chip" data-time="${t}">
-        ${t}
-        <button class="time-chip-remove" data-remove-time="${t}">✕</button>
+      <div class="time-chip" data-time="${escHtml(t)}">
+        ${escHtml(t)}
+        <button class="time-chip-remove" data-remove-time="${escHtml(t)}">✕</button>
       </div>
     `).join('');
 
     return `
-      <div class="phase-block" data-phase-id="${phase.id}">
+      <div class="phase-block" data-phase-id="${escHtml(phase.id)}">
         <div class="phase-block-header">
           <span class="phase-block-title">Phase ${index + 1}</span>
-          <button class="btn-remove-phase" data-remove-phase="${phase.id}" title="Supprimer phase">✕</button>
+          <button class="btn-remove-phase" data-remove-phase="${escHtml(phase.id)}" title="Supprimer phase">✕</button>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Début *</label>
-            <input class="form-input phase-start" type="date" value="${phase.startDate || ''}" data-phase-id="${phase.id}" />
+            <input class="form-input phase-start" type="date" value="${phase.startDate || ''}" data-phase-id="${escHtml(phase.id)}" />
           </div>
           <div class="form-group">
             <label class="form-label">Fin</label>
-            <input class="form-input phase-end" type="date" value="${phase.endDate || ''}" data-phase-id="${phase.id}" />
+            <input class="form-input phase-end" type="date" value="${phase.endDate || ''}" data-phase-id="${escHtml(phase.id)}" />
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">Dosage</label>
-          <input class="form-input phase-dosage" type="text" placeholder="Ex: 200mg" value="${escHtml(phase.dosage || '')}" data-phase-id="${phase.id}" />
+          <input class="form-input phase-dosage" type="text" placeholder="Ex: 200mg" value="${escHtml(phase.dosage || '')}" data-phase-id="${escHtml(phase.id)}" />
         </div>
         <div class="form-group">
           <label class="form-label">Heures de prise</label>
-          <div class="times-row" id="times-row-${phase.id}">
+          <div class="times-row" id="times-row-${escHtml(phase.id)}">
             ${timesHtml}
             <div style="display:flex;gap:6px;align-items:center;">
-              <input type="time" class="form-input" id="time-input-${phase.id}" style="width:110px;padding:6px 10px;" />
-              <button class="btn-add-time" data-add-time-for="${phase.id}">＋</button>
+              <input type="time" class="form-input" id="time-input-${escHtml(phase.id)}" style="width:110px;padding:6px 10px;" />
+              <button class="btn-add-time" data-add-time-for="${escHtml(phase.id)}">＋</button>
             </div>
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">Notes</label>
-          <input class="form-input phase-notes" type="text" placeholder="Optionnel" value="${escHtml(phase.notes || '')}" data-phase-id="${phase.id}" />
+          <input class="form-input phase-notes" type="text" placeholder="Optionnel" value="${escHtml(phase.notes || '')}" data-phase-id="${escHtml(phase.id)}" />
         </div>
       </div>
     `;
@@ -256,7 +267,7 @@ const MedicationsScreen = {
       const validationError = MedicationsScreen._validateForm(formData);
       if (validationError) { showToast(validationError); return; }
 
-      const med = { id: formData.id, name: formData.name.trim(), type: formData.type.trim(), protocolId: formData.protocolId || null };
+      const med = { id: formData.id, name: formData.name.trim(), type: formData.type.trim(), protocolId: formData.protocolId || null, dosageMode: 'fixed' };
       try {
         await DB.saveMedication(med);
         if (isEdit) await DB.deletePhasesByMedication(med.id);
@@ -397,6 +408,98 @@ const MedicationsScreen = {
       await DB.saveProtocol(next); showToast('Protocole mis à jour'); await MedicationsScreen.render(); await TodayScreen.render(); await TimelineScreen.render();
     }catch(err){console.error(err);showToast('Action protocole impossible');}
   },
+  openAddMenu(protocols = []) {
+    const content = `
+      <div class="modal-header"><span class="modal-title">Ajouter un traitement</span><button class="modal-close" id="modal-close-btn">✕</button></div>
+      <div class="modal-body"><div style="display:grid;gap:10px;">
+        <button class="btn-primary" id="add-fixed">Traitement simple</button>
+        <button class="btn-primary" id="add-variable">Traitement à dosage variable</button>
+      </div></div>`;
+    Modal.show(content);
+    document.getElementById('modal-close-btn').onclick = () => Modal.hide();
+    document.getElementById('add-fixed').onclick = () => MedicationsScreen.openForm(null, null, protocols);
+    document.getElementById('add-variable').onclick = () => MedicationsScreen.openVariableForm(null, null, protocols);
+  },
+
+  openVariableForm(med, existingPhases, protocols = []) {
+    const isEdit = !!med;
+    const phase = (existingPhases && existingPhases[0]) ? { ...existingPhases[0] } : MedicationsScreen._newPhase();
+    phase.dosage = '';
+    const formData = { id: med?.id || uid(), name: med?.name || '', type: med?.type || '', protocolId: med?.protocolId || protocols[0]?.id || null, phase };
+    const content = `
+      <div class="modal-header"><span class="modal-title">${isEdit ? 'Modifier traitement variable' : 'Traitement à dosage variable'}</span><button class="modal-close" id="modal-close-btn">✕</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label class="form-label">Nom du médicament *</label><input id="v-name" class="form-input" value="${escHtml(formData.name)}"></div>
+        <div class="form-group"><label class="form-label">Type / forme</label><input id="v-type" class="form-input" value="${escHtml(formData.type)}"></div>
+        <div class="form-group"><label class="form-label">Protocole</label><select id="v-protocol" class="form-input">${protocols.map(p=>`<option value="${escHtml(p.id)}" ${formData.protocolId===p.id?'selected':''}>${escHtml(p.name)}</option>`).join('')}</select></div>
+        <div class="form-row"><div class="form-group"><label class="form-label">Date de début *</label><input id="v-start" type="date" class="form-input" value="${escHtml(formData.phase.startDate || todayStr())}"></div><div class="form-group"><label class="form-label">Date de fin</label><input id="v-end" type="date" class="form-input" value="${escHtml(formData.phase.endDate || '')}"></div></div>
+        <div class="form-group"><label class="form-label">Heure(s) de prise *</label><input id="v-times" class="form-input" placeholder="08:00, 20:00" value="${escHtml((formData.phase.times || []).join(', '))}"></div>
+        <div class="form-group"><label class="form-label">Notes optionnelles</label><input id="v-notes" class="form-input" value="${escHtml(formData.phase.notes || '')}"></div>
+        <div class="card card-sm"><strong>Calendrier de dosage</strong><p style="margin:.4rem 0 0;color:var(--text-soft);">Après création, saisissez les dosages semaine par semaine. Aucune dose n’est proposée automatiquement.</p></div>
+      </div>
+      <div class="modal-footer"><button class="btn-secondary" id="modal-cancel-btn">Annuler</button><button class="btn-primary" id="modal-save-btn">${isEdit?'Enregistrer':'Créer et saisir la semaine'}</button></div>`;
+    Modal.show(content);
+    document.getElementById('modal-close-btn').onclick = () => Modal.hide();
+    document.getElementById('modal-cancel-btn').onclick = () => Modal.hide();
+    document.getElementById('modal-save-btn').onclick = async () => {
+      const name = document.getElementById('v-name').value.trim();
+      const startDate = document.getElementById('v-start').value;
+      const endDate = document.getElementById('v-end').value || null;
+      const times = normalizeTimes(document.getElementById('v-times').value.split(/[;,\s]+/));
+      if (!name) return showToast('Le nom est obligatoire');
+      if (!startDate) return showToast('La date de début est obligatoire');
+      if (endDate && endDate < startDate) return showToast('La date de fin doit être après le début');
+      if (!times.length) return showToast('Au moins une heure est obligatoire');
+      const protocolId = document.getElementById('v-protocol').value || null;
+      const now = new Date().toISOString();
+      const savedMed = { id: formData.id, name, type: document.getElementById('v-type').value.trim(), protocolId, dosageMode: 'variable', createdAt: med?.createdAt || now, updatedAt: now };
+      await DB.saveMedication(savedMed);
+      if (isEdit) await DB.deletePhasesByMedication(savedMed.id);
+      await DB.savePhase({ ...formData.phase, medicationId: savedMed.id, protocolId, startDate, endDate, dosage: '', times, notes: document.getElementById('v-notes').value.trim() });
+      Modal.hide();
+      showToast(isEdit ? '✓ Traitement mis à jour' : '✓ Traitement créé');
+      await MedicationsScreen.render(); await TodayScreen.render(); await TimelineScreen.render(); await JournalScreen.render();
+      await MedicationsScreen.openDosageCalendar(savedMed, startDate);
+    };
+  },
+
+  async openDosageCalendar(med, dateStr = todayStr()) {
+    let weekStart = startOfWeekMonday(dateStr);
+    const render = async () => {
+      const overrides = await DB.getDosageOverridesByMedication(med.id);
+      const days = weekDatesMonday(weekStart);
+      const byDate = new Map(overrides.map(o => [o.date, o]));
+      const rows = days.map(ds => {
+        const d = fromDateStr(ds);
+        const label = capitalize(d.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: '2-digit' }));
+        const o = byDate.get(ds);
+        return `<div class="dosage-week-row"><label><span>${escHtml(label)}</span><input class="form-input dosage-day-input" data-date="${escHtml(ds)}" placeholder="Dosage" value="${escHtml(o?.dosage || '')}"></label></div>`;
+      }).join('');
+      Modal.show(`<div class="modal-header"><span class="modal-title">Calendrier de dosage</span><button class="modal-close" id="modal-close-btn">✕</button></div><div class="modal-body"><div class="card card-sm"><strong>${escHtml(med.name)}</strong><div style="color:var(--text-soft);font-size:.86rem;">Semaine du ${escHtml(formatDateShortFR(days[0]))} au ${escHtml(formatDateShortFR(days[6]))}</div></div><div class="dosage-week-nav"><button class="btn-settings" id="week-prev">Semaine précédente</button><button class="btn-settings" id="week-current">Semaine actuelle</button><button class="btn-settings" id="week-next">Semaine suivante</button></div><div class="dosage-week-grid">${rows}</div></div><div class="modal-footer"><button class="btn-secondary" id="week-clear">Effacer la semaine</button><button class="btn-secondary" id="week-duplicate">Dupliquer cette semaine</button><button class="btn-primary" id="week-save">Enregistrer la semaine</button></div>`);
+      document.getElementById('modal-close-btn').onclick = () => Modal.hide();
+      document.getElementById('week-prev').onclick = async () => { weekStart = addDays(weekStart, -7); await render(); };
+      document.getElementById('week-current').onclick = async () => { weekStart = startOfWeekMonday(todayStr()); await render(); };
+      document.getElementById('week-next').onclick = async () => { weekStart = addDays(weekStart, 7); await render(); };
+      document.getElementById('week-save').onclick = async () => { await MedicationsScreen._saveDosageWeek(med); showToast('Semaine enregistrée'); await TodayScreen.render(); await TimelineScreen.render(); await JournalScreen.render(); await render(); };
+      document.getElementById('week-clear').onclick = async () => { for (const ds of days) await DB.deleteDosageOverride(`${med.id}|${ds}`); showToast('Semaine effacée'); await TodayScreen.render(); await TimelineScreen.render(); await JournalScreen.render(); await render(); };
+      document.getElementById('week-duplicate').onclick = async () => { await MedicationsScreen._saveDosageWeek(med); const fresh = await DB.getDosageOverridesByMedication(med.id); const map = new Map(fresh.map(o => [o.date, o])); const now = new Date().toISOString(); for (const ds of days) { const o = map.get(ds); const nextDate = addDays(ds, 7); if (!o || !String(o.dosage || '').trim() || o.enabled === false) await DB.deleteDosageOverride(`${med.id}|${nextDate}`); else await DB.saveDosageOverride({ id: `${med.id}|${nextDate}`, medicationId: med.id, protocolId: med.protocolId, date: nextDate, dosage: String(o.dosage).trim(), enabled: true, note: o.note || '', createdAt: now, updatedAt: now }); } weekStart = addDays(weekStart, 7); showToast('Semaine dupliquée'); await TodayScreen.render(); await TimelineScreen.render(); await JournalScreen.render(); await render(); };
+    };
+    await render();
+  },
+
+  async _saveDosageWeek(med) {
+    const now = new Date().toISOString();
+    const inputs = document.querySelectorAll('.dosage-day-input');
+    for (const input of inputs) {
+      const date = input.dataset.date;
+      const dosage = input.value.trim();
+      const id = `${med.id}|${date}`;
+      if (!dosage) { await DB.deleteDosageOverride(id); continue; }
+      await DB.saveDosageOverride({ id, medicationId: med.id, protocolId: med.protocolId, date, dosage, enabled: true, note: '', createdAt: now, updatedAt: now });
+    }
+  },
+
+
   // ── DELETE ────────────────────────────────────────────────────
 
   confirmDelete(med) {
@@ -422,20 +525,22 @@ const MedicationsScreen = {
     document.getElementById('modal-close-btn').addEventListener('click', () => Modal.hide());
     document.getElementById('del-cancel').addEventListener('click', () => Modal.hide());
     document.getElementById('del-confirm').addEventListener('click', async () => {
-      const protocols = await DB.getProtocols();
+      const [protocols, phases, dosageOverrides] = await Promise.all([DB.getProtocols(), DB.getPhases(), DB.getDosageOverrides()]);
       const protocol = protocols.find(p => p.id === med.protocolId);
       const intakeEvents = await DB.getIntakeEvents();
       for (const ev of intakeEvents) {
         if (ev.medicationId !== med.id) continue;
         const payload = { ...(ev.payload || {}) };
         if (!payload.medNameSnapshot) payload.medNameSnapshot = med.name || 'médicament supprimé';
-        if (!payload.dosageSnapshot) payload.dosageSnapshot = '';
+        if (!payload.dosageSnapshot) { const scheduledDate = payload.scheduledDate || (ev.intakeKey || '').split('|')[2]; const intake = scheduledDate ? Intakes.generateForDate([med], phases.filter(p => p.medicationId === med.id), scheduledDate, dosageOverrides).find(i => i.key === ev.intakeKey) : null; payload.dosageSnapshot = intake?.dosage || ''; payload.plannedDosage = payload.dosageSnapshot; }
         if (!payload.medTypeSnapshot) payload.medTypeSnapshot = med.type || '';
         if (!payload.protocolNameSnapshot) payload.protocolNameSnapshot = protocol?.name || '';
+        if (!payload.dosageModeSnapshot) payload.dosageModeSnapshot = med.dosageMode === 'variable' ? 'variable' : 'fixed';
         await DB.saveIntakeEvent({ ...ev, payload });
       }
       await DB.deleteMedication(med.id);
       await DB.deletePhasesByMedication(med.id);
+      await DB.deleteDosageOverridesByMedication(med.id);
       // Also remove related intake actions
       const allActions = await DB.getAllIntakeActions();
       for (const a of allActions) {

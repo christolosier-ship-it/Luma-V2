@@ -682,3 +682,30 @@ input, select, textarea { font-family: var(--font-body); }
 .today-summary{border:1px solid #dbeaff;background:#f8fcff;margin-bottom:12px;}
 .today-summary-title{font-weight:600;color:var(--sage-dark);margin-bottom:4px;}
 .settings-info-card p{font-size:.84rem;color:var(--text-soft);margin-top:6px;}
+
+.dosage-week-nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+
+.dosage-week-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.dosage-week-row label {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(120px, 1.2fr);
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+@media (max-width: 420px) {
+  .dosage-week-row label {
+    grid-template-columns: 1fr;
+  }
+}
