@@ -522,7 +522,7 @@ const MedicationsScreen = {
         const active = isActiveDate(ds);
         return `<div class="dosage-week-row ${active ? '' : 'dosage-week-row-disabled'}"><label><span>${escHtml(label)}</span><input class="form-input dosage-day-input" data-date="${escHtml(ds)}" placeholder="Dosage" value="${escHtml(active ? (o?.dosage || '') : '')}" ${active ? '' : 'disabled'}></label>${active ? '' : '<div class="dosage-week-help">Hors période du traitement</div>'}</div>`;
       }).join('');
-      Modal.show(`<div class="modal-header"><span class="modal-title">Calendrier de dosage</span><button class="modal-close" id="modal-close-btn">✕</button></div><div class="modal-body"><div class="card card-sm"><strong>${escHtml(med.name)}</strong><div style="color:var(--text-soft);font-size:.86rem;">Semaine du ${escHtml(formatDateShortFR(days[0]))} au ${escHtml(formatDateShortFR(days[6]))}</div></div><div class="dosage-week-nav"><button class="btn-settings" id="week-prev">Semaine précédente</button><button class="btn-settings" id="week-current">Semaine actuelle</button><button class="btn-settings" id="week-next">Semaine suivante</button></div><div class="dosage-bulk card card-sm"><label class="form-label" for="week-fill-value">Remplir les jours actifs avec :</label><div class="dosage-bulk-row"><input id="week-fill-value" class="form-input" type="text" placeholder="Dosage à saisir"><button class="btn-settings" id="week-apply-active">Appliquer aux jours actifs</button></div><button class="btn-settings" id="week-copy-monday" style="margin-top:8px;">Copier lundi sur les jours actifs</button></div><div class="dosage-week-grid">${rows}</div></div><div class="modal-footer"><button class="btn-secondary" id="week-clear">Effacer les jours actifs</button><button class="btn-secondary" id="week-copy-prev">Copier depuis semaine précédente</button><button class="btn-secondary" id="week-duplicate">Dupliquer vers semaine suivante</button><button class="btn-primary" id="week-save">Enregistrer la semaine</button></div>`);
+      Modal.show(`<div class="modal-header"><span class="modal-title">Calendrier de dosage</span><button class="modal-close" id="modal-close-btn">✕</button></div><div class="modal-body"><div class="card card-sm"><strong>${escHtml(med.name)}</strong><div style="color:var(--text-soft);font-size:.86rem;">Semaine du ${escHtml(formatDateShortFR(days[0]))} au ${escHtml(formatDateShortFR(days[6]))}</div></div><div class="dosage-week-nav"><button class="btn-settings" id="week-prev">Semaine précédente</button><button class="btn-settings" id="week-current">Semaine actuelle</button><button class="btn-settings" id="week-next">Semaine suivante</button></div><div class="dosage-week-grid">${rows}</div></div><div class="modal-footer dosage-calendar-footer"><button class="btn-primary" id="week-save">Enregistrer la semaine</button><details class="dosage-quick-actions"><summary>Actions rapides</summary><div class="dosage-bulk"><label class="form-label" for="week-fill-value">Remplir les jours actifs avec :</label><div class="dosage-bulk-row"><input id="week-fill-value" class="form-input" type="text" placeholder="Dosage à saisir"><button class="btn-settings" id="week-apply-active">Appliquer aux jours actifs</button></div><button class="btn-settings" id="week-copy-monday">Copier lundi sur les jours actifs</button><button class="btn-secondary" id="week-copy-prev">Copier depuis semaine précédente</button><button class="btn-secondary" id="week-duplicate">Dupliquer vers semaine suivante</button><button class="btn-secondary" id="week-clear">Effacer les jours actifs</button></div></details></div>`);
       document.getElementById('modal-close-btn').onclick = () => Modal.hide();
       document.getElementById('week-prev').onclick = async () => { weekStart = addDays(weekStart, -7); await render(); };
       document.getElementById('week-current').onclick = async () => { weekStart = startOfWeekMonday(todayStr()); await render(); };
@@ -594,7 +594,7 @@ const MedicationsScreen = {
     const copiable = pairs.filter(pair => pair.source && pair.source.enabled !== false && String(pair.source.dosage || '').trim());
     if (!copiable.length) { showToast(emptyMessage); return false; }
     const targetHasValues = pairs.some(pair => String(pair.existing?.dosage || '').trim());
-    if (confirmReplace && targetHasValues && !confirm('Cette semaine contient déjà des dosages. Les remplacer ?')) return false;
+    if (confirmReplace && targetHasValues && !confirm('Certains jours vont être remplacés. Continuer ?')) return false;
     const now = new Date().toISOString();
     for (const pair of copiable) {
       const dosage = String(pair.source.dosage || '').trim();
@@ -605,14 +605,14 @@ const MedicationsScreen = {
   },
 
   async _confirmDosageHistoryChange(med, date, mode) {
-    if (date >= todayStr()) return true;
+    if (date > todayStr()) return true;
     const [actions, events] = await Promise.all([DB.getAllIntakeActions(), DB.getIntakeEvents()]);
     const hasAction = actions.some(a => a.key?.startsWith(`${med.id}|`) && a.key.includes(`|${date}|`));
     const hasEvent = events.some(e => e.medicationId === med.id && (e.payload?.scheduledDate === date || e.intakeKey?.includes(`|${date}|`)));
     if (!hasAction && !hasEvent) return true;
     const message = mode === 'delete'
-      ? 'Ce dosage correspond à une prise passée déjà enregistrée. Le supprimer peut masquer cette prise dans l’historique affiché. Continuer ?'
-      : 'Ce dosage correspond à une prise passée déjà enregistrée. Le modifier peut changer l’affichage de l’historique. Continuer ?';
+      ? 'Ce dosage correspond à une prise déjà enregistrée. Le supprimer peut masquer cette prise dans l’historique affiché. Continuer ?'
+      : 'Ce dosage correspond à une prise déjà enregistrée. Le modifier peut changer l’affichage de l’historique. Continuer ?';
     return confirm(message);
   },
 

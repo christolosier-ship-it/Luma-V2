@@ -63,10 +63,10 @@ const TodayScreen = {
       screen.querySelectorAll('.btn-toggle-event').forEach(btn=>btn.addEventListener('click', async ()=>{await DB.toggleProtocolEventCompleted(btn.dataset.id); await TodayScreen.render(); await TimelineScreen.render();}));
       screen.querySelector('#save-note').addEventListener('click', async()=>{await DB.saveDailyNote({id:dateStr,date:dateStr,freeNote:screen.querySelector('#n-free').value.trim(),updatedAt:new Date().toISOString()});showToast('Note enregistrée'); await TodayScreen.render();});
       screen.querySelector('#save-symptoms').addEventListener('click', async()=>{const symptoms={}; for(const f of symptomFields){symptoms[f.key]=Number(screen.querySelector(`#n-${f.key}`).value||0);} await DB.saveDailySymptoms({id:dateStr,date:dateStr,symptoms,otherSymptomLabel:screen.querySelector('#n-other-label').value.trim(),updatedAt:new Date().toISOString()}); showToast('Symptômes enregistrés'); await TodayScreen.render();});
-      screen.querySelectorAll('.js-open-missing-dosage').forEach(btn=>btn.addEventListener('click', async()=>{ const med=await DB.getMedication(btn.dataset.medId); if(med) await MedicationsScreen.showDosageCalendar(med); }));
-      screen.querySelector('.js-empty-add-protocol')?.addEventListener('click', ()=>MedicationsScreen.showProtocolForm());
-      screen.querySelector('.js-empty-add-med')?.addEventListener('click', ()=>MedicationsScreen.showForm(null, { dosageMode: 'fixed' }));
-      screen.querySelector('.js-empty-add-variable')?.addEventListener('click', ()=>MedicationsScreen.showForm(null, { dosageMode: 'variable' }));
+      screen.querySelectorAll('.js-open-missing-dosage').forEach(btn=>btn.addEventListener('click', async()=>{ const med=await DB.getMedication(btn.dataset.medId); if(med) await MedicationsScreen.openDosageCalendar(med); }));
+      screen.querySelector('.js-empty-add-protocol')?.addEventListener('click', ()=>MedicationsScreen.openProtocolForm());
+      screen.querySelector('.js-empty-add-med')?.addEventListener('click', ()=>MedicationsScreen.openFixedWithDefaultProtocol());
+      screen.querySelector('.js-empty-add-variable')?.addEventListener('click', ()=>MedicationsScreen.openVariableWithDefaultProtocol());
       screen.querySelector('.js-empty-import')?.addEventListener('click', ()=>{ App.navigateTo('settings'); setTimeout(()=>document.getElementById('btn-import')?.click(), 50); });
     } catch (err) { console.error(err); screen.innerHTML='<div class="card">Erreur chargement aujourd’hui</div>'; }
   },
@@ -85,19 +85,30 @@ const TodayScreen = {
     });
   },
   _getNextAction(intakes, protocolEvents, nowMinutes, dateStr=todayStr()){
-    const lateIntakes = intakes.filter(i=>Intakes.getVisualStatus(i,dateStr)==='late' && !['taken','skipped'].includes(i.status));
-    if(lateIntakes.length){ const i=lateIntakes.sort((a,b)=>TodayScreen._timeMinutes(a.displayTime || a.time)-TodayScreen._timeMinutes(b.displayTime || b.time))[0]; return {prefix:'En retard', timeLabel:i.displayTime || i.time, title:i.medName}; }
-    const actions = [
-      ...intakes.filter(i=>!['taken','skipped'].includes(i.status)).map(i=>({prefix:'Prochaine prise', timeLabel:i.displayTime || i.time || 'Sans horaire', title:i.medName, minutes:TodayScreen._timeMinutes(i.displayTime || i.time)})),
-      ...protocolEvents.filter(e=>!e.completed).map(e=>({prefix:'Prochain événement', timeLabel:e.time || 'Sans horaire', title:e.title, minutes:TodayScreen._timeMinutes(e.time)}))
-    ].filter(a=>a.minutes === null || a.minutes >= nowMinutes)
-      .sort((a,b)=>{
-        if (a.minutes !== null && b.minutes !== null) return a.minutes-b.minutes;
-        if (a.minutes !== null) return -1;
-        if (b.minutes !== null) return 1;
-        return 0;
-      });
-    return actions[0] || null;
+    const activeIntakes = intakes
+      .filter(i=>!['taken','skipped'].includes(i.status))
+      .map(i=>({prefix:'Prochaine action', timeLabel:i.displayTime || i.time || 'Sans horaire', title:i.medName, minutes:TodayScreen._timeMinutes(i.displayTime || i.time), kind:'intake'}));
+    const activeEvents = protocolEvents
+      .filter(e=>!e.completed)
+      .map(e=>({prefix:'Prochaine action', timeLabel:e.time || 'Sans horaire', title:e.title, minutes:TodayScreen._timeMinutes(e.time), kind:'event'}));
+    const sortByTime = (a,b) => (a.minutes ?? 9999) - (b.minutes ?? 9999);
+    const lateIntakes = activeIntakes
+      .filter(a=>a.minutes !== null && a.minutes < nowMinutes)
+      .sort(sortByTime);
+    if (lateIntakes.length) return {...lateIntakes[0], prefix:'Action en retard'};
+    const lateEvents = activeEvents
+      .filter(a=>a.minutes !== null && a.minutes < nowMinutes)
+      .sort(sortByTime);
+    if (lateEvents.length) return {...lateEvents[0], prefix:'Action en retard'};
+    const futureIntakes = activeIntakes
+      .filter(a=>a.minutes !== null && a.minutes >= nowMinutes)
+      .sort(sortByTime);
+    if (futureIntakes.length) return futureIntakes[0];
+    const futureEvents = activeEvents
+      .filter(a=>a.minutes !== null && a.minutes >= nowMinutes)
+      .sort(sortByTime);
+    if (futureEvents.length) return futureEvents[0];
+    return activeEvents.find(a=>a.minutes === null) || null;
   },
   _emptyState(medCount){return medCount===0?`<div class="empty-state empty-state-welcome"><div class="empty-icon">👋</div><h3>Bienvenue dans Luma</h3><p>Créez un protocole, ajoutez un médicament ou importez une sauvegarde pour commencer.</p><div class="empty-actions"><button class="btn-settings js-empty-add-protocol">Ajouter un protocole</button><button class="btn-settings js-empty-add-med">Ajouter traitement simple</button><button class="btn-settings js-empty-add-variable">Ajouter traitement à dosage variable</button><button class="btn-settings js-empty-import">Importer JSON</button></div></div>`:`<div class="empty-state"><div class="empty-icon">✨</div><p>Aucune prise ni événement prévu ce jour.</p></div>`;},
   _intakeCard(intake,dateStr){ const v=Intakes.getVisualStatus(intake,dateStr); return `<div class="intake-card status-${v}" data-key="${escHtml(intake.key)}"><div class="intake-top"><div class="intake-time">${escHtml(intake.displayTime || intake.time || 'Sans horaire')}</div>${TodayScreen._badge(v)}</div><div class="intake-name">${escHtml(intake.medName)}</div><div class="intake-detail">${escHtml(intake.dosage)}${intake.dosageMode === 'variable' ? ' · <span class="timeline-badge">Dosage variable</span>' : ''}</div>${TodayScreen._actions(intake)}</div>`; },

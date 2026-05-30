@@ -10,10 +10,6 @@ const App = {
     }, 600);
     App._bindNav();
     await TodayScreen.render();
-    await TimelineScreen.render();
-    await MedicationsScreen.render();
-    await JournalScreen.render();
-    SettingsScreen.render();
     App.updateHeaderDate();
   },
   // Lie les boutons de navigation du bas.
