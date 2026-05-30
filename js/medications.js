@@ -531,8 +531,8 @@ const MedicationsScreen = {
       document.getElementById('week-apply-active').onclick = async () => { await MedicationsScreen._applyDosageToActiveDays(med, days, isActiveDate, document.getElementById('week-fill-value').value); await MedicationsScreen._refreshAfterDosage(); await render(); };
       document.getElementById('week-copy-monday').onclick = async () => { await MedicationsScreen._copyMondayToActiveDays(med, days, isActiveDate); await MedicationsScreen._refreshAfterDosage(); await render(); };
       document.getElementById('week-clear').onclick = async () => { if(!confirm('Effacer les dosages des jours actifs de cette semaine ?')) return; for (const ds of days) if (isActiveDate(ds)) await MedicationsScreen._deleteDosageOverrideWithHistoryCheck(med, ds); showToast('Jours actifs effacés'); await MedicationsScreen._refreshAfterDosage(); await render(); };
-      document.getElementById('week-duplicate').onclick = async () => { await MedicationsScreen._saveDosageWeek(med, isActiveDate); await MedicationsScreen._copyDosageWeek(med, days, days.map(ds=>addDays(ds,7)), isActiveDate, true); weekStart = addDays(weekStart, 7); showToast('Semaine dupliquée'); await MedicationsScreen._refreshAfterDosage(); await render(); };
-      document.getElementById('week-copy-prev').onclick = async () => { await MedicationsScreen._copyDosageWeek(med, days.map(ds=>addDays(ds,-7)), days, isActiveDate, true); showToast('Semaine copiée'); await MedicationsScreen._refreshAfterDosage(); await render(); };
+      document.getElementById('week-duplicate').onclick = async () => { await MedicationsScreen._saveDosageWeek(med, isActiveDate); const copied = await MedicationsScreen._copyDosageWeek(med, days, days.map(ds=>addDays(ds,7)), isActiveDate, true, 'Aucun dosage à dupliquer vers la semaine suivante.'); if (!copied) return; weekStart = addDays(weekStart, 7); showToast('Semaine dupliquée'); await MedicationsScreen._refreshAfterDosage(); await render(); };
+      document.getElementById('week-copy-prev').onclick = async () => { const copied = await MedicationsScreen._copyDosageWeek(med, days.map(ds=>addDays(ds,-7)), days, isActiveDate, true, 'Aucun dosage à copier depuis la semaine précédente.'); if (!copied) return; showToast('Semaine copiée'); await MedicationsScreen._refreshAfterDosage(); await render(); };
     };
     await render();
   },
@@ -586,21 +586,22 @@ const MedicationsScreen = {
     }
   },
 
-  async _copyDosageWeek(med, sourceDays, targetDays, isActiveDate, confirmReplace) {
+  async _copyDosageWeek(med, sourceDays, targetDays, isActiveDate, confirmReplace, emptyMessage = 'Aucun dosage à copier.') {
     const fresh = await DB.getDosageOverridesByMedication(med.id);
     const map = new Map(fresh.map(o => [o.date, o]));
-    const targetHasValues = targetDays.some(ds => isActiveDate(ds) && map.get(ds) && String(map.get(ds).dosage || '').trim());
-    if (confirmReplace && targetHasValues && !confirm('Cette semaine contient déjà des dosages. Les remplacer ?')) return;
+    const pairs = sourceDays.map((sourceDate, index) => ({ sourceDate, targetDate: targetDays[index], source: map.get(sourceDate), existing: map.get(targetDays[index]) }))
+      .filter(pair => isActiveDate(pair.targetDate));
+    const copiable = pairs.filter(pair => pair.source && pair.source.enabled !== false && String(pair.source.dosage || '').trim());
+    if (!copiable.length) { showToast(emptyMessage); return false; }
+    const targetHasValues = pairs.some(pair => String(pair.existing?.dosage || '').trim());
+    if (confirmReplace && targetHasValues && !confirm('Cette semaine contient déjà des dosages. Les remplacer ?')) return false;
     const now = new Date().toISOString();
-    for (let i=0;i<sourceDays.length;i++) {
-      const source = map.get(sourceDays[i]);
-      const targetDate = targetDays[i];
-      const targetId = `${med.id}|${targetDate}`;
-      if (!isActiveDate(targetDate)) { await DB.deleteDosageOverride(targetId); continue; }
-      const existing = map.get(targetDate);
-      if (!source || !String(source.dosage || '').trim() || source.enabled === false) { await DB.deleteDosageOverride(targetId); continue; }
-      await DB.saveDosageOverride({ id: targetId, medicationId: med.id, protocolId: med.protocolId, date: targetDate, dosage: String(source.dosage).trim(), enabled: true, note: source.note || '', createdAt: existing?.createdAt || now, updatedAt: now });
+    for (const pair of copiable) {
+      const dosage = String(pair.source.dosage || '').trim();
+      if (pair.existing && String(pair.existing.dosage || '').trim() !== dosage && !(await MedicationsScreen._confirmDosageHistoryChange(med, pair.targetDate, 'edit'))) continue;
+      await DB.saveDosageOverride({ id: `${med.id}|${pair.targetDate}`, medicationId: med.id, protocolId: med.protocolId, date: pair.targetDate, dosage, enabled: true, note: pair.source.note || pair.existing?.note || '', createdAt: pair.existing?.createdAt || now, updatedAt: now });
     }
+    return true;
   },
 
   async _confirmDosageHistoryChange(med, date, mode) {

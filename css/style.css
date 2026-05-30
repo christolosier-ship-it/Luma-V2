@@ -612,7 +612,7 @@ input, select, textarea { font-family: var(--font-body); }
   }
 }
 
-/* V3.5.3 — consolidation & confort terrain */
+/* V3.5.4 — déroulé chronologique & fiabilité historique */
 .protocol-card { margin: 12px 0; }
 .protocol-card > summary { list-style: none; cursor: pointer; }
 .protocol-card > summary::-webkit-details-marker { display: none; }
@@ -637,7 +637,7 @@ input, select, textarea { font-family: var(--font-body); }
 .dosage-week-help { margin-top: 4px; }
 @media (max-width: 520px) { .protocol-card-header { flex-direction: column; } .protocol-actions { justify-content: flex-start; } .missing-dosage-row, .dosage-bulk-row { align-items:stretch; flex-direction:column; } }
 
-/* V3.5.3 — menu d'ajout centralisé */
+/* V3.5.4 — menu d'ajout centralisé */
 .add-menu-section {
   display: grid;
   gap: 8px;
