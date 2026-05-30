@@ -1,7 +1,7 @@
 <div align="center">
   <img src="icons/icone_512x512.png" alt="Icône Luma" width="128" height="128" />
 
-# Luma V3.5.1 — Ergonomie dosage variable
+# Luma V3.5.2 — Chronologie allégée & menu d’ajout centralisé
 
 ### Protocole & Journal
 
@@ -9,7 +9,7 @@
 
 <br>
 
-![Version](https://img.shields.io/badge/version-3.5.1-2494F2?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-3.5.2-2494F2?style=for-the-badge)
 ![PWA](https://img.shields.io/badge/PWA-offline--first-31C7C4?style=for-the-badge)
 ![Vanilla JS](https://img.shields.io/badge/Vanilla-JS-F7DF1E?style=for-the-badge&logo=javascript&logoColor=000)
 ![IndexedDB](https://img.shields.io/badge/Storage-IndexedDB-1266C3?style=for-the-badge)
@@ -91,7 +91,7 @@ Statuts possibles des prises :
 
 ### Timeline verticale
 
-La Timeline de Luma V3.5.1 est une vraie chronologie verticale HTML/CSS, conçue pour lire le protocole comme un parcours.
+La Timeline de Luma V3.5.2 est une vraie chronologie verticale HTML/CSS, conçue pour lire le protocole comme un parcours.
 
 Elle affiche :
 
@@ -296,7 +296,7 @@ Luma-3.4/
 
 ## Modèle de données
 
-Luma V3.5.1 utilise la base locale :
+Luma V3.5.2 utilise la base locale :
 
 ```txt
 luma_db
@@ -317,7 +317,8 @@ Stores principaux :
 | `phases` | Périodes et horaires de prise. |
 | `intakeActions` | État courant d'une prise. |
 | `intakeEvents` | Historique des actions sur les prises. |
-| `dailyNotes` | Notes quotidiennes et symptômes. |
+| `dailyNotes` | Notes quotidiennes. |
+| `dailySymptoms` | Symptômes quotidiens. |
 | `protocolEvents` | Événements liés à un protocole. |
 
 ### Exemple d'export JSON
@@ -325,7 +326,7 @@ Stores principaux :
 ```json
 {
   "app": "Luma",
-  "version": "3.4",
+  "version": "3.5.2",
   "exportedAt": "2026-05-24T10:00:00.000Z",
   "protocols": [],
   "medications": [],
@@ -333,6 +334,7 @@ Stores principaux :
   "intakeActions": [],
   "intakeEvents": [],
   "dailyNotes": [],
+  "dailySymptoms": [],
   "protocolEvents": [],
   "settings": {}
 }
@@ -349,12 +351,12 @@ L'export JSON est la sauvegarde complète de l'application. Il contient toutes l
 Nom généré :
 
 ```txt
-luma-v3.5.1-backup-YYYY-MM-DD.json
+luma-v3.5.2-backup-YYYY-MM-DD.json
 ```
 
 ### Import JSON
 
-L'import accepte strictement le format V3.5.1 et refuse clairement les sauvegardes incompatibles.
+L'import accepte strictement le format V3.5.2 et refuse clairement les sauvegardes incompatibles.
 
 Avant un import valide, Luma télécharge automatiquement une sauvegarde de sécurité :
 
@@ -452,7 +454,7 @@ Luma cherche à rester :
 
 <br>
 
-**Luma V3.5.1**
+**Luma V3.5.2**
 _Un carnet de bord personnel santé, rangé comme une trousse bleue et calme._
 
 </div>

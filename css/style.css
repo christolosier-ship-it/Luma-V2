@@ -630,7 +630,7 @@ input, select, textarea { font-family: var(--font-body); }
   }
 }
 
-/* V3.5.1 — ergonomie dosage variable */
+/* V3.5.2 — chronologie allégée & menu d’ajout centralisé */
 .protocol-card { margin: 12px 0; }
 .protocol-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
 .protocol-card-header h3 { margin: 0; color: var(--sage-dark); font-size: 1rem; }
@@ -645,3 +645,23 @@ input, select, textarea { font-family: var(--font-body); }
 .dosage-week-row-disabled input { background: #edf1f5; color: var(--text-soft); }
 .dosage-week-help { margin-top: 4px; }
 @media (max-width: 520px) { .protocol-card-header { flex-direction: column; } .protocol-actions { justify-content: flex-start; } }
+
+/* V3.5.2 — menu d'ajout centralisé */
+.add-menu-section {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.add-menu-section:last-child { margin-bottom: 0; }
+.add-menu-title {
+  color: var(--text-soft);
+  font-size: .82rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+.add-menu-btn {
+  justify-content: flex-start;
+  text-align: left;
+  width: 100%;
+}

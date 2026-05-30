@@ -42,8 +42,8 @@ const MedicationsScreen = {
       });
     });
     screen.querySelector('.js-empty-add-protocol')?.addEventListener('click',()=>MedicationsScreen.openProtocolForm());
-    screen.querySelector('.js-empty-add-med')?.addEventListener('click',()=>MedicationsScreen.openForm(null, null, protocols));
-    screen.querySelector('.js-empty-add-variable')?.addEventListener('click',()=>MedicationsScreen.openVariableForm(null, null, protocols));
+    screen.querySelector('.js-empty-add-med')?.addEventListener('click',()=>MedicationsScreen.openFixedWithDefaultProtocol());
+    screen.querySelector('.js-empty-add-variable')?.addEventListener('click',()=>MedicationsScreen.openVariableWithDefaultProtocol());
     screen.querySelector('.js-empty-import')?.addEventListener('click', ()=>{ App.navigateTo('settings'); setTimeout(()=>document.getElementById('btn-import')?.click(), 50); });
     screen.querySelectorAll('.protocol-filter-pill').forEach(btn=>btn.addEventListener('click', async ()=>{ MedicationsScreen.protocolFilter = btn.dataset.filter; await MedicationsScreen.render(); }));
     screen.querySelectorAll('.btn-protocol-action').forEach(btn=>btn.addEventListener('click',async()=>{
@@ -394,21 +394,59 @@ const MedicationsScreen = {
       await DB.saveProtocol(next); showToast('Protocole mis à jour'); await MedicationsScreen.render(); await TodayScreen.render(); await TimelineScreen.render();
     }catch(err){console.error(err);showToast('Action protocole impossible');}
   },
-  openAddMenu(protocols = []) {
+  async _ensureDefaultProtocol() {
+    let protocols = await DB.getProtocols();
+    if (protocols.length) return protocols;
+    const now = new Date().toISOString();
+    await DB.saveProtocol({ id: uid(), name: 'Traitement principal', type: 'free', status: 'active', startDate: todayStr(), endDate: null, createdAt: now, updatedAt: now });
+    showToast('Protocole Traitement principal créé.');
+    protocols = await DB.getProtocols();
+    await MedicationsScreen.render();
+    await TodayScreen.render();
+    await TimelineScreen.render();
+    return protocols;
+  },
+
+  async openFixedWithDefaultProtocol() {
+    const protocols = await MedicationsScreen._ensureDefaultProtocol();
+    MedicationsScreen.openForm(null, null, protocols);
+  },
+
+  async openVariableWithDefaultProtocol() {
+    const protocols = await MedicationsScreen._ensureDefaultProtocol();
+    MedicationsScreen.openVariableForm(null, null, protocols);
+  },
+
+  async openEventWithDefaultProtocol() {
+    const protocols = await MedicationsScreen._ensureDefaultProtocol();
+    TimelineScreen.openEventForm(null, protocols);
+  },
+
+  openAddMenu() {
     const content = `
       <div class="modal-header"><span class="modal-title">Ajouter</span><button class="modal-close" id="modal-close-btn">✕</button></div>
-      <div class="modal-body"><div style="display:grid;gap:10px;">
-        <button class="btn-primary" id="add-protocol">Ajouter un protocole</button>
-        <button class="btn-primary" id="add-fixed">Ajouter un traitement simple</button>
-        <button class="btn-primary" id="add-variable">Ajouter un traitement à dosage variable</button>
-        <button class="btn-primary" id="add-event">Ajouter un événement de protocole</button>
-      </div></div>`;
+      <div class="modal-body">
+        <div class="add-menu-section">
+          <div class="add-menu-title">Suivi</div>
+          <button class="btn-primary add-menu-btn" id="add-note">📝 Ajouter une note libre</button>
+          <button class="btn-primary add-menu-btn" id="add-symptoms">🌡️ Ajouter des symptômes</button>
+          <button class="btn-primary add-menu-btn" id="add-event">📅 Ajouter un événement de protocole</button>
+        </div>
+        <div class="add-menu-section">
+          <div class="add-menu-title">Traitement</div>
+          <button class="btn-primary add-menu-btn" id="add-protocol">📁 Ajouter un protocole</button>
+          <button class="btn-primary add-menu-btn" id="add-fixed">💊 Ajouter un traitement simple</button>
+          <button class="btn-primary add-menu-btn" id="add-variable">🧮 Ajouter un traitement à dosage variable</button>
+        </div>
+      </div>`;
     Modal.show(content);
     document.getElementById('modal-close-btn').onclick = () => Modal.hide();
+    document.getElementById('add-note').onclick = () => DailyEntryModals.openFreeNoteForm(todayStr());
+    document.getElementById('add-symptoms').onclick = () => DailyEntryModals.openSymptomsForm(todayStr());
+    document.getElementById('add-event').onclick = () => MedicationsScreen.openEventWithDefaultProtocol();
     document.getElementById('add-protocol').onclick = () => MedicationsScreen.openProtocolForm();
-    document.getElementById('add-fixed').onclick = () => MedicationsScreen.openForm(null, null, protocols);
-    document.getElementById('add-variable').onclick = () => MedicationsScreen.openVariableForm(null, null, protocols);
-    document.getElementById('add-event').onclick = () => TimelineScreen.openEventForm(null, protocols);
+    document.getElementById('add-fixed').onclick = () => MedicationsScreen.openFixedWithDefaultProtocol();
+    document.getElementById('add-variable').onclick = () => MedicationsScreen.openVariableWithDefaultProtocol();
   },
 
   openVariableForm(med, existingPhases, protocols = []) {
