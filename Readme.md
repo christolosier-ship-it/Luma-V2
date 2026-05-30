@@ -1,7 +1,7 @@
 <div align="center">
   <img src="icons/icone_512x512.png" alt="Icône Luma" width="128" height="128" />
 
-# Luma V3.5.5 - Correctifs terrain & simplification dosage
+# Luma V3.5.6 - Polish mobile & priorité du jour
 
 ### Protocole & Journal
 
@@ -9,7 +9,7 @@
 
 <br>
 
-![Version](https://img.shields.io/badge/version-3.5.5-2494F2?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-3.5.6-2494F2?style=for-the-badge)
 ![PWA](https://img.shields.io/badge/PWA-offline--first-31C7C4?style=for-the-badge)
 ![Vanilla JS](https://img.shields.io/badge/Vanilla-JS-F7DF1E?style=for-the-badge&logo=javascript&logoColor=000)
 ![IndexedDB](https://img.shields.io/badge/Storage-IndexedDB-1266C3?style=for-the-badge)
@@ -66,7 +66,7 @@ Luma fonctionne **sans compte**, **sans cloud**, **sans serveur** et **sans publ
 
 L'écran principal affiche uniquement la journée réelle en cours. Il n'est pas modifié par les dates sélectionnées dans la Timeline.
 
-Il affiche un **Déroulé du jour** qui fusionne prises et événements dans l'ordre chronologique réel. Il permet de :
+Il affiche un **Déroulé du jour** qui fusionne prises et événements en priorité active : les actions encore à faire restent en haut, puis les éléments terminés descendent sous un séparateur discret. Il permet de :
 
 - voir les prises prévues aujourd'hui ;
 - identifier les prises en retard ;
@@ -74,7 +74,7 @@ Il affiche un **Déroulé du jour** qui fusionne prises et événements dans l'o
 - passer une prise ;
 - reporter une prise de 15 minutes ;
 - annuler une action ;
-- consulter les événements du jour ;
+- consulter, terminer ou rouvrir les événements du jour ;
 - saisir une note quotidienne et des symptômes.
 
 Statuts possibles des prises :
@@ -91,7 +91,7 @@ Statuts possibles des prises :
 
 ### Timeline verticale
 
-La Timeline de Luma V3.5.5 est une vraie chronologie verticale HTML/CSS, conçue pour lire le protocole comme un parcours.
+La Timeline de Luma V3.5.6 est une vraie chronologie verticale HTML/CSS, conçue pour lire le protocole comme un parcours.
 
 Elle affiche :
 
@@ -104,7 +104,7 @@ Elle affiche :
 - les symptômes enregistrés ;
 - les repères J1, J2, J3 selon la date de début du protocole.
 
-La Timeline dispose aussi d'un filtre par protocole et d'un retour rapide à aujourd'hui.
+La Timeline dispose aussi d'un filtre par protocole, d'un retour rapide à aujourd'hui avec highlight discret et de cartes compactes avec statuts visibles.
 
 ---
 
@@ -268,7 +268,7 @@ Exemple d'arborescence attendue :
 ## Structure du projet
 
 ```txt
-Luma-V3.5.5/
+Luma-V3.5.6/
 ├── index.html
 ├── manifest.json
 ├── sw.js
@@ -296,7 +296,7 @@ Luma-V3.5.5/
 
 ## Modèle de données
 
-Luma V3.5.5 utilise la base locale :
+Luma V3.5.6 utilise la base locale :
 
 ```txt
 luma_db
@@ -327,7 +327,7 @@ Stores principaux :
 ```json
 {
   "app": "Luma",
-  "version": "3.5.5",
+  "version": "3.5.6",
   "exportedAt": "2026-05-24T10:00:00.000Z",
   "protocols": [],
   "medications": [],
@@ -352,12 +352,12 @@ L'export JSON est la sauvegarde complète de l'application. Il contient toutes l
 Nom généré :
 
 ```txt
-luma-v3.5.5-backup-YYYY-MM-DD.json
+luma-v3.5.6-backup-YYYY-MM-DD.json
 ```
 
 ### Import JSON
 
-L'import accepte strictement le format V3.5.5 et refuse clairement les sauvegardes incompatibles.
+L'import accepte strictement le format V3.5.6 et refuse clairement les sauvegardes incompatibles.
 
 Avant un import valide, Luma télécharge automatiquement une sauvegarde de sécurité :
 
@@ -372,7 +372,7 @@ Le Journal peut être exporté en CSV compatible Excel français. Les lignes d'u
 Nom généré :
 
 ```txt
-luma-journal-v3.5.5-YYYY-MM-DD.csv
+luma-journal-v3.5.6-YYYY-MM-DD.csv
 ```
 
 - encodage UTF-8 avec BOM ;
@@ -465,7 +465,7 @@ Luma cherche à rester :
 
 <br>
 
-**Luma V3.5.5**
+**Luma V3.5.6**
 _Un carnet de bord personnel santé, rangé comme une trousse bleue et calme._
 
 </div>

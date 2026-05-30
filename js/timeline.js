@@ -20,7 +20,7 @@ const TimelineScreen = {
       <div class="timeline-shell">
         <div class="timeline-toolbar">
           <select id="timeline-protocol-filter" class="form-input">${protocolOpts}</select>
-          <button id="timeline-jump-today" class="btn-settings btn-timeline-today">Aujourd’hui</button>
+          <button id="timeline-jump-today" class="btn btn-primary btn-compact btn-timeline-today">Aujourd’hui</button>
           <label class="timeline-toggle-empty"><input id="timeline-hide-empty" type="checkbox" ${this.hideEmptyDays ? 'checked' : ''}/> Masquer les jours vides</label>
         </div>
         <div class="vertical-timeline">${htmlDays || '<div class="timeline-empty-day">Aucun élément avec les filtres courants.</div>'}</div>
@@ -113,18 +113,27 @@ const TimelineScreen = {
   },
 
   _intakeItemHtml(intake) {
-    return `<div class="timeline-item"><div class="timeline-item-card"><div class="timeline-item-icon">💊</div><div><div class="timeline-item-time">${escHtml(intake.displayTime || intake.time || 'Sans horaire')}</div><div class="timeline-item-title">${escHtml(intake.medName || '')}</div><div class="timeline-item-detail">${escHtml(intake.dosage || '')}${intake.dosageMode === 'variable' ? ' · Dosage variable' : ''}</div></div></div></div>`;
+    const status = Intakes.getVisualStatus(intake, intake.dateStr || todayStr());
+    return `<div class="timeline-item"><div class="timeline-item-card status-${escHtml(status)}"><div class="timeline-item-icon">💊</div><div><div class="timeline-item-title"><span>${escHtml(intake.displayTime || intake.time || 'Sans horaire')} · ${escHtml(intake.medName || '')}</span> ${this._statusBadge(status)}</div><div class="timeline-item-detail">${escHtml(intake.dosage || '')}${intake.dosageMode === 'variable' ? ' · Dosage variable' : ''}</div></div></div></div>`;
   },
 
   _eventItemHtml(event) {
-    return `<div class="timeline-item"><div class="timeline-item-card status-event"><div class="timeline-item-icon">📅</div><div><div class="timeline-item-time">${escHtml(event.time || 'Sans horaire')}</div><div class="timeline-item-title">${escHtml(event.title)} <span class="timeline-badge">${event.completed ? 'Événement terminé' : 'Événement'}</span></div><div class="timeline-item-detail">${escHtml(eventTypeLabelFR(event.type))}</div><div style="margin-top:6px;display:flex;gap:6px;"><button class="btn-settings" data-ev-edit="${escHtml(event.id)}">Modifier</button><button class="btn-settings" data-ev-toggle="${escHtml(event.id)}">${event.completed ? 'Réouvrir' : 'Terminer'}</button><button class="btn-settings" data-ev-del="${escHtml(event.id)}">Supprimer</button></div></div></div></div>`;
+    const statusClass = event.completed ? 'status-event status-completed' : 'status-event status-pending';
+    const badge = event.completed ? this._statusBadge('completed') : this._statusBadge(event.time ? 'pending' : 'untimed');
+    return `<div class="timeline-item"><div class="timeline-item-card ${statusClass}"><div class="timeline-item-icon">📅</div><div><div class="timeline-item-title"><span>${escHtml(event.time || 'Sans horaire')} · ${escHtml(event.title)}</span> ${badge}</div><div class="timeline-item-detail">${escHtml(eventTypeLabelFR(event.type))}</div><div class="timeline-actions"><button class="btn btn-primary btn-compact" data-ev-toggle="${escHtml(event.id)}">${event.completed ? 'Réouvrir' : 'Terminer'}</button><button class="btn btn-ghost btn-compact" data-ev-edit="${escHtml(event.id)}">Modifier</button><button class="btn btn-danger btn-compact" data-ev-del="${escHtml(event.id)}">Supprimer</button></div></div></div></div>`;
   },
 
   _noteItemHtml(dateStr, note) {
-    return `<div class="timeline-item"><div class="timeline-item-card status-note"><div class="timeline-item-icon">📝</div><div><div class="timeline-item-time">Note libre</div><div class="timeline-item-detail">${escHtml(note.freeNote)}</div><div style="margin-top:6px;"><button class="btn-settings" data-note-edit="${escHtml(dateStr)}">Modifier</button></div></div></div></div>`;
+    return `<div class="timeline-item"><div class="timeline-item-card status-note"><div class="timeline-item-icon">📝</div><div><div class="timeline-item-title">Note libre <button class="btn btn-linkish btn-compact" data-note-edit="${escHtml(dateStr)}">Modifier</button></div><div class="timeline-item-detail">${escHtml(note.freeNote)}</div></div></div></div>`;
   },
 
   _symptomsItemHtml(daySymptoms) {
-    return `<div class="timeline-item"><div class="timeline-item-card status-note"><div class="timeline-item-icon">🌡️</div><div><div class="timeline-item-time">Symptômes</div><div class="timeline-item-detail">${escHtml(symptomsToText(daySymptoms, true))}</div></div></div></div>`;
+    return `<div class="timeline-item"><div class="timeline-item-card status-note"><div class="timeline-item-icon">🌡️</div><div><div class="timeline-item-title">Symptômes</div><div class="timeline-item-detail">${escHtml(symptomsToText(daySymptoms, true))}</div></div></div></div>`;
+  },
+
+  _statusBadge(status) {
+    const labels = { taken:'Pris', skipped:'Passé', snoozed:'Reporté', late:'En retard', pending:'À venir', completed:'Terminé', untimed:'Sans horaire' };
+    const classes = { taken:'is-success', completed:'is-success', skipped:'is-muted', snoozed:'is-primary', late:'is-warning', pending:'is-primary', untimed:'is-muted' };
+    return `<span class="status-badge ${classes[status] || 'is-muted'}">${labels[status] || status}</span>`;
   },
 };
