@@ -43,9 +43,10 @@ let swRefreshing = false;
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
+      const hadController = !!navigator.serviceWorker.controller;
       const registration = await navigator.serviceWorker.register('./sw.js');
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (swRefreshing) return;
+        if (!hadController || swRefreshing) return;
         swRefreshing = true;
         window.location.reload();
       });

@@ -48,7 +48,6 @@ const TimelineScreen = {
     const defaultProtocolId = ev?.protocolId
       || (this.selectedProtocolId !== 'all' && protocols.some((p) => p.id === this.selectedProtocolId) ? this.selectedProtocolId : '')
       || protocols.find((p) => p.status === 'active')?.id
-      || protocols[0]?.id
       || '';
     const protocolOptions = protocols.map((p) => `<option value="${escHtml(p.id)}" ${(defaultProtocolId === p.id) ? 'selected' : ''}>${escHtml(p.name)}</option>`).join('');
     const content = `

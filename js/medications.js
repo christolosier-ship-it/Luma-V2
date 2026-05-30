@@ -8,8 +8,8 @@ const MedicationsScreen = {
   async render() {
     const screen = document.getElementById('screen-medications');
     const [medications, phases, protocols, dosageOverrides] = await Promise.all([DB.getMedications(),DB.getPhases(),DB.getProtocols(),DB.getDosageOverrides()]);
-    const hierarchicalHtml = medications.length === 0
-      ? `<div class="empty-state empty-state-welcome"><div class="empty-icon">👋</div><h3>Bienvenue dans Luma</h3><p>Créez un protocole, ajoutez un médicament ou importez une sauvegarde pour commencer.</p><div class="empty-actions"><button class="btn-settings js-empty-add-protocol">Créer un protocole</button><button class="btn-settings js-empty-add-med">Ajouter traitement simple</button><button class="btn-settings js-empty-add-variable">Ajouter traitement à dosage variable</button><button class="btn-settings js-empty-import">Importer JSON</button></div></div>`
+    const hierarchicalHtml = medications.length === 0 && protocols.length === 0
+      ? `<div class="empty-state empty-state-welcome"><div class="empty-icon">👋</div><h3>Bienvenue dans Luma</h3><p>Créez un protocole, ajoutez un médicament ou importez une sauvegarde pour commencer.</p><div class="empty-actions"><button class="btn-settings js-empty-add-protocol">Ajouter un protocole</button><button class="btn-settings js-empty-add-med">Ajouter traitement simple</button><button class="btn-settings js-empty-add-variable">Ajouter traitement à dosage variable</button><button class="btn-settings js-empty-import">Importer JSON</button></div></div>`
       : MedicationsScreen._protocolsSection(protocols, medications, phases, dosageOverrides);
 
     screen.innerHTML = `
@@ -46,10 +46,13 @@ const MedicationsScreen = {
     screen.querySelector('.js-empty-add-variable')?.addEventListener('click',()=>MedicationsScreen.openVariableWithDefaultProtocol());
     screen.querySelector('.js-empty-import')?.addEventListener('click', ()=>{ App.navigateTo('settings'); setTimeout(()=>document.getElementById('btn-import')?.click(), 50); });
     screen.querySelectorAll('.protocol-filter-pill').forEach(btn=>btn.addEventListener('click', async ()=>{ MedicationsScreen.protocolFilter = btn.dataset.filter; await MedicationsScreen.render(); }));
-    screen.querySelectorAll('.btn-protocol-action').forEach(btn=>btn.addEventListener('click',async()=>{
+    screen.querySelectorAll('.btn-protocol-action').forEach(btn=>btn.addEventListener('click',async(e)=>{
+      e.preventDefault(); e.stopPropagation();
       const p=protocols.find(x=>x.id===btn.dataset.protocolId); if(!p) return;
       await MedicationsScreen.handleProtocolAction(p, btn.dataset.action);
     }));
+    screen.querySelectorAll('.js-protocol-add-fixed').forEach(btn=>btn.addEventListener('click',()=>MedicationsScreen.openForm(null, null, MedicationsScreen._prioritizeProtocol(protocols, btn.dataset.protocolId))));
+    screen.querySelectorAll('.js-protocol-add-variable').forEach(btn=>btn.addEventListener('click',()=>MedicationsScreen.openVariableForm(null, null, MedicationsScreen._prioritizeProtocol(protocols, btn.dataset.protocolId))));
   },
 
   _medCard(med, phases, dosageOverrides = []) {
@@ -341,8 +344,10 @@ const MedicationsScreen = {
       const meds = medications.filter(m=>p.id==='__none__'?!protocolById.has(m.protocolId):m.protocolId===p.id);
       if (!meds.length && p.id==='__none__') return '';
       const actions = p.id==='__none__' ? [] : MedicationsScreen._protocolActionsByStatus(p.status||'active');
+      const isClosed = ['completed','archived'].includes(p.status || 'active');
+      const emptyHtml = p.id==='__none__' ? '<div class="card card-sm">Aucun médicament dans ce protocole.</div>' : `<div class="card card-sm protocol-empty-actions"><p>Aucun médicament dans ce protocole.</p><div class="empty-actions"><button class="btn-settings js-protocol-add-fixed" data-protocol-id="${escHtml(p.id)}">Ajouter traitement simple</button><button class="btn-settings js-protocol-add-variable" data-protocol-id="${escHtml(p.id)}">Ajouter traitement à dosage variable</button></div></div>`;
       const medsHtml = meds.map(m=>MedicationsScreen._medCard(m, (phaseByMed.get(m.id)||[]).sort((a,b)=>a.startDate.localeCompare(b.startDate)), dosageOverrides)).join('');
-      return `<section class="protocol-card card"><div class="protocol-card-header"><div><h3>${escHtml(p.name)}</h3><div class="protocol-card-meta">${escHtml(protocolStatusLabelFR(p.status||'active'))}${p.startDate?` · depuis le ${escHtml(formatDateShortFR(p.startDate))}`:''}${p.endDate?` → ${escHtml(formatDateShortFR(p.endDate))}`:''} · ${meds.length} médicament${meds.length!==1?'s':''}</div></div>${actions.length?`<div class="protocol-actions">${actions.map(a=>`<button class="btn-settings btn-protocol-action ${a.danger?'btn-protocol-danger':''}" data-action="${a.action}" data-protocol-id="${escHtml(p.id)}">${a.label}</button>`).join('')}</div>`:''}</div><div class="protocol-med-list">${medsHtml || '<div class="card card-sm">Aucun médicament dans ce protocole.</div>'}</div></section>`;
+      return `<details class="protocol-card card" ${isClosed?'':'open'}><summary class="protocol-card-header"><div><h3>${escHtml(p.name)}</h3><div class="protocol-card-meta">${escHtml(protocolStatusLabelFR(p.status||'active'))}${p.startDate?` · depuis le ${escHtml(formatDateShortFR(p.startDate))}`:''}${p.endDate?` → ${escHtml(formatDateShortFR(p.endDate))}`:''} · ${meds.length} médicament${meds.length!==1?'s':''}</div></div>${actions.length?`<div class="protocol-actions">${actions.map(a=>`<button class="btn-settings btn-protocol-action ${a.danger?'btn-protocol-danger':''}" data-action="${a.action}" data-protocol-id="${escHtml(p.id)}">${a.label}</button>`).join('')}</div>`:''}</summary><div class="protocol-med-list">${medsHtml || emptyHtml}</div></details>`;
     }).join('');
     return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px;">${pills}</div>${cards || '<div class="card card-sm">Aucun protocole à afficher.</div>'}`;
   },
@@ -385,7 +390,7 @@ const MedicationsScreen = {
   async handleProtocolAction(protocol, action){
     try{
       if(action==='edit') return MedicationsScreen.openProtocolForm(protocol);
-      if(action==='delete'){ if(!confirm('Supprimer ce protocole ?')) return; const meds=await DB.getMedications(); if(meds.some(m=>m.protocolId===protocol.id)) return showToast('Protocole utilisé par des médicaments'); await DB.deleteProtocol(protocol.id); showToast('Protocole supprimé'); return MedicationsScreen.render(); }
+      if(action==='delete'){ if(!confirm('Supprimer définitivement ce protocole ?')) return; const [meds, events, overrides, phases] = await Promise.all([DB.getMedications(), DB.getProtocolEvents(), DB.getDosageOverrides(), DB.getPhases()]); const linked = meds.some(m=>m.protocolId===protocol.id) || events.some(e=>e.protocolId===protocol.id) || overrides.some(o=>o.protocolId===protocol.id) || phases.some(ph=>ph.protocolId===protocol.id); if(linked) return showToast('Ce protocole contient encore des traitements, événements ou dosages. Supprimez ou archivez ces éléments avant suppression définitive.'); await DB.deleteProtocol(protocol.id); showToast('Protocole supprimé'); return MedicationsScreen.render(); }
       const next = {...protocol, updatedAt:new Date().toISOString()};
       if(action==='pause') next.status='paused';
       if(action==='resume') next.status='active';
@@ -395,16 +400,18 @@ const MedicationsScreen = {
     }catch(err){console.error(err);showToast('Action protocole impossible');}
   },
   async _ensureDefaultProtocol() {
-    let protocols = await DB.getProtocols();
-    if (protocols.length) return protocols;
-    const now = new Date().toISOString();
-    await DB.saveProtocol({ id: uid(), name: 'Traitement principal', type: 'free', status: 'active', startDate: todayStr(), endDate: null, createdAt: now, updatedAt: now });
-    showToast('Protocole Traitement principal créé.');
-    protocols = await DB.getProtocols();
+    const before = await DB.getProtocols();
+    const active = await DB.ensureActiveProtocol();
+    const protocols = await DB.getProtocols();
+    if (!before.some(p => p.status === 'active')) showToast('Protocole Traitement principal créé.');
     await MedicationsScreen.render();
     await TodayScreen.render();
     await TimelineScreen.render();
-    return protocols;
+    return MedicationsScreen._prioritizeProtocol(protocols, active.id);
+  },
+
+  _prioritizeProtocol(protocols, protocolId) {
+    return [...protocols].sort((a,b) => (a.id === protocolId ? -1 : 0) + (b.id === protocolId ? 1 : 0));
   },
 
   async openFixedWithDefaultProtocol() {
@@ -515,17 +522,52 @@ const MedicationsScreen = {
         const active = isActiveDate(ds);
         return `<div class="dosage-week-row ${active ? '' : 'dosage-week-row-disabled'}"><label><span>${escHtml(label)}</span><input class="form-input dosage-day-input" data-date="${escHtml(ds)}" placeholder="Dosage" value="${escHtml(active ? (o?.dosage || '') : '')}" ${active ? '' : 'disabled'}></label>${active ? '' : '<div class="dosage-week-help">Hors période du traitement</div>'}</div>`;
       }).join('');
-      Modal.show(`<div class="modal-header"><span class="modal-title">Calendrier de dosage</span><button class="modal-close" id="modal-close-btn">✕</button></div><div class="modal-body"><div class="card card-sm"><strong>${escHtml(med.name)}</strong><div style="color:var(--text-soft);font-size:.86rem;">Semaine du ${escHtml(formatDateShortFR(days[0]))} au ${escHtml(formatDateShortFR(days[6]))}</div></div><div class="dosage-week-nav"><button class="btn-settings" id="week-prev">Semaine précédente</button><button class="btn-settings" id="week-current">Semaine actuelle</button><button class="btn-settings" id="week-next">Semaine suivante</button></div><div class="dosage-week-grid">${rows}</div></div><div class="modal-footer"><button class="btn-secondary" id="week-clear">Effacer la semaine</button><button class="btn-secondary" id="week-copy-prev">Copier depuis semaine précédente</button><button class="btn-secondary" id="week-duplicate">Dupliquer vers semaine suivante</button><button class="btn-primary" id="week-save">Enregistrer la semaine</button></div>`);
+      Modal.show(`<div class="modal-header"><span class="modal-title">Calendrier de dosage</span><button class="modal-close" id="modal-close-btn">✕</button></div><div class="modal-body"><div class="card card-sm"><strong>${escHtml(med.name)}</strong><div style="color:var(--text-soft);font-size:.86rem;">Semaine du ${escHtml(formatDateShortFR(days[0]))} au ${escHtml(formatDateShortFR(days[6]))}</div></div><div class="dosage-week-nav"><button class="btn-settings" id="week-prev">Semaine précédente</button><button class="btn-settings" id="week-current">Semaine actuelle</button><button class="btn-settings" id="week-next">Semaine suivante</button></div><div class="dosage-bulk card card-sm"><label class="form-label" for="week-fill-value">Remplir les jours actifs avec :</label><div class="dosage-bulk-row"><input id="week-fill-value" class="form-input" type="text" placeholder="Dosage à saisir"><button class="btn-settings" id="week-apply-active">Appliquer aux jours actifs</button></div><button class="btn-settings" id="week-copy-monday" style="margin-top:8px;">Copier lundi sur les jours actifs</button></div><div class="dosage-week-grid">${rows}</div></div><div class="modal-footer"><button class="btn-secondary" id="week-clear">Effacer les jours actifs</button><button class="btn-secondary" id="week-copy-prev">Copier depuis semaine précédente</button><button class="btn-secondary" id="week-duplicate">Dupliquer vers semaine suivante</button><button class="btn-primary" id="week-save">Enregistrer la semaine</button></div>`);
       document.getElementById('modal-close-btn').onclick = () => Modal.hide();
       document.getElementById('week-prev').onclick = async () => { weekStart = addDays(weekStart, -7); await render(); };
       document.getElementById('week-current').onclick = async () => { weekStart = startOfWeekMonday(todayStr()); await render(); };
       document.getElementById('week-next').onclick = async () => { weekStart = addDays(weekStart, 7); await render(); };
       document.getElementById('week-save').onclick = async () => { await MedicationsScreen._saveDosageWeek(med, isActiveDate); showToast('Semaine enregistrée'); await MedicationsScreen._refreshAfterDosage(); await render(); };
-      document.getElementById('week-clear').onclick = async () => { for (const ds of days) if (isActiveDate(ds)) await MedicationsScreen._deleteDosageOverrideWithHistoryCheck(med, ds); showToast('Semaine effacée'); await MedicationsScreen._refreshAfterDosage(); await render(); };
+      document.getElementById('week-apply-active').onclick = async () => { await MedicationsScreen._applyDosageToActiveDays(med, days, isActiveDate, document.getElementById('week-fill-value').value); await MedicationsScreen._refreshAfterDosage(); await render(); };
+      document.getElementById('week-copy-monday').onclick = async () => { await MedicationsScreen._copyMondayToActiveDays(med, days, isActiveDate); await MedicationsScreen._refreshAfterDosage(); await render(); };
+      document.getElementById('week-clear').onclick = async () => { if(!confirm('Effacer les dosages des jours actifs de cette semaine ?')) return; for (const ds of days) if (isActiveDate(ds)) await MedicationsScreen._deleteDosageOverrideWithHistoryCheck(med, ds); showToast('Jours actifs effacés'); await MedicationsScreen._refreshAfterDosage(); await render(); };
       document.getElementById('week-duplicate').onclick = async () => { await MedicationsScreen._saveDosageWeek(med, isActiveDate); await MedicationsScreen._copyDosageWeek(med, days, days.map(ds=>addDays(ds,7)), isActiveDate, true); weekStart = addDays(weekStart, 7); showToast('Semaine dupliquée'); await MedicationsScreen._refreshAfterDosage(); await render(); };
       document.getElementById('week-copy-prev').onclick = async () => { await MedicationsScreen._copyDosageWeek(med, days.map(ds=>addDays(ds,-7)), days, isActiveDate, true); showToast('Semaine copiée'); await MedicationsScreen._refreshAfterDosage(); await render(); };
     };
     await render();
+  },
+
+
+  async _applyDosageToActiveDays(med, days, isActiveDate, dosageValue) {
+    const dosage = String(dosageValue || '').trim();
+    if (!dosage) return showToast('Saisissez un dosage à appliquer.');
+    const activeDays = days.filter(ds => isActiveDate(ds));
+    const existing = new Map((await DB.getDosageOverridesByMedication(med.id)).map(o => [o.date, o]));
+    if (activeDays.some(ds => String(existing.get(ds)?.dosage || '').trim()) && !confirm('Certains jours actifs ont déjà un dosage. Les remplacer ?')) return;
+    const now = new Date().toISOString();
+    for (const ds of activeDays) {
+      const prev = existing.get(ds);
+      if (prev && String(prev.dosage || '').trim() !== dosage && !(await MedicationsScreen._confirmDosageHistoryChange(med, ds, 'edit'))) continue;
+      await DB.saveDosageOverride({ id: `${med.id}|${ds}`, medicationId: med.id, protocolId: med.protocolId, date: ds, dosage, enabled: true, note: prev?.note || '', createdAt: prev?.createdAt || now, updatedAt: now });
+    }
+    showToast('Dosage appliqué aux jours actifs');
+  },
+
+  async _copyMondayToActiveDays(med, days, isActiveDate) {
+    const monday = days[0];
+    const existing = new Map((await DB.getDosageOverridesByMedication(med.id)).map(o => [o.date, o]));
+    const source = existing.get(monday);
+    const dosage = String(source?.dosage || '').trim();
+    if (!isActiveDate(monday) || !source || source.enabled === false || !dosage) return showToast('Aucun dosage actif à copier depuis lundi.');
+    const targets = days.slice(1).filter(ds => isActiveDate(ds));
+    if (targets.some(ds => String(existing.get(ds)?.dosage || '').trim()) && !confirm('Certains jours actifs ont déjà un dosage. Les remplacer ?')) return;
+    const now = new Date().toISOString();
+    for (const ds of targets) {
+      const prev = existing.get(ds);
+      if (prev && String(prev.dosage || '').trim() !== dosage && !(await MedicationsScreen._confirmDosageHistoryChange(med, ds, 'edit'))) continue;
+      await DB.saveDosageOverride({ id: `${med.id}|${ds}`, medicationId: med.id, protocolId: med.protocolId, date: ds, dosage, enabled: true, note: prev?.note || source.note || '', createdAt: prev?.createdAt || now, updatedAt: now });
+    }
+    showToast('Lundi copié sur les jours actifs');
   },
 
   async _saveDosageWeek(med, isActiveDate = () => true) {

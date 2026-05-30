@@ -8,15 +8,30 @@ const DailyEntryModals = {
         <div class="form-group"><label class="form-label">Date</label><input id="note-date" type="date" class="form-input" value="${escHtml(dateStr)}"/></div>
         <div class="form-group"><label class="form-label">Note</label><textarea id="note-text" class="form-input" rows="4" placeholder="Note libre">${escHtml(current?.freeNote || '')}</textarea></div>
       </div>
-      <div class="modal-footer"><button class="btn-secondary" id="note-cancel">Annuler</button><button class="btn-primary" id="note-save">Enregistrer</button></div>`;
+      <div class="modal-footer">${current ? '<button class="btn-secondary" id="note-delete">Supprimer la note</button>' : ''}<button class="btn-secondary" id="note-cancel">Annuler</button><button class="btn-primary" id="note-save">Enregistrer</button></div>`;
     Modal.show(content);
     document.getElementById('modal-close-btn').onclick = () => Modal.hide();
     document.getElementById('note-cancel').onclick = () => Modal.hide();
     document.getElementById('note-date').onchange = (e) => DailyEntryModals.openFreeNoteForm(e.target.value || todayStr());
+    document.getElementById('note-delete')?.addEventListener('click', async () => {
+      const chosenDate = document.getElementById('note-date').value || dateStr;
+      await DB.deleteDailyNote(chosenDate);
+      Modal.hide();
+      showToast('Note supprimée');
+      await DailyEntryModals._refresh(chosenDate);
+    });
     document.getElementById('note-save').onclick = async () => {
       const chosenDate = document.getElementById('note-date').value;
       const content = document.getElementById('note-text').value.trim();
-      if (!chosenDate || !content) return showToast('Date et note obligatoires');
+      if (!chosenDate) return showToast('Date obligatoire');
+      if (!content) {
+        const exists = (await DB.getDailyNotes()).some((n) => n.date === chosenDate);
+        if (exists) { await DB.deleteDailyNote(chosenDate); showToast('Note supprimée'); }
+        else showToast('Aucune note à enregistrer.');
+        Modal.hide();
+        await DailyEntryModals._refresh(chosenDate);
+        return;
+      }
       const allNotes = await DB.getDailyNotes();
       const existing = allNotes.find((n) => n.date === chosenDate);
       await DB.saveDailyNote({ id: chosenDate, date: chosenDate, freeNote: content, updatedAt: new Date().toISOString(), createdAt: existing?.createdAt || new Date().toISOString() });

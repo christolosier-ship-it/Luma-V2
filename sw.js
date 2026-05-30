@@ -1,4 +1,4 @@
-const CACHE_NAME = 'luma-v3.5.2';
+const CACHE_NAME = 'luma-v3.5.3';
 const ASSETS = ['./','./index.html','./css/style.css','./js/db.js','./js/utils.js','./js/intakes.js','./js/today.js','./js/dailyEntryModals.js','./js/timeline.js','./js/journal.js','./js/medications.js','./js/settings.js','./js/modal.js','./js/app.js','./manifest.json','./icons/icone_192x192.png','./icons/icone_512x512.png'];
 
 self.addEventListener('install', (event) => {

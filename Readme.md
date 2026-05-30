@@ -1,7 +1,7 @@
 <div align="center">
   <img src="icons/icone_512x512.png" alt="Icône Luma" width="128" height="128" />
 
-# Luma V3.5.2 — Chronologie allégée & menu d’ajout centralisé
+# Luma V3.5.3 — Consolidation & confort terrain
 
 ### Protocole & Journal
 
@@ -9,7 +9,7 @@
 
 <br>
 
-![Version](https://img.shields.io/badge/version-3.5.2-2494F2?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-3.5.3-2494F2?style=for-the-badge)
 ![PWA](https://img.shields.io/badge/PWA-offline--first-31C7C4?style=for-the-badge)
 ![Vanilla JS](https://img.shields.io/badge/Vanilla-JS-F7DF1E?style=for-the-badge&logo=javascript&logoColor=000)
 ![IndexedDB](https://img.shields.io/badge/Storage-IndexedDB-1266C3?style=for-the-badge)
@@ -91,7 +91,7 @@ Statuts possibles des prises :
 
 ### Timeline verticale
 
-La Timeline de Luma V3.5.2 est une vraie chronologie verticale HTML/CSS, conçue pour lire le protocole comme un parcours.
+La Timeline de Luma V3.5.3 est une vraie chronologie verticale HTML/CSS, conçue pour lire le protocole comme un parcours.
 
 Elle affiche :
 
@@ -171,9 +171,9 @@ Chaque médicament est rattaché à un protocole. Une phase définit :
 
 Pour un **traitement à dosage variable**, l'horaire est saisi avec un sélecteur natif `input type="time"` et Luma ne génère au maximum qu'une prise par jour. Le dosage est ensuite renseigné dans le calendrier de dosage, sans suggestion automatique.
 
-Le calendrier de dosage désactive les jours hors période active du traitement. Les actions de semaine disponibles sont **Dupliquer vers semaine suivante** et **Copier depuis semaine précédente**.
+Le calendrier de dosage désactive les jours hors période active du traitement. Les actions de semaine disponibles sont **Appliquer aux jours actifs**, **Copier lundi sur les jours actifs**, **Effacer les jours actifs**, **Dupliquer vers semaine suivante** et **Copier depuis semaine précédente**. L'utilisateur saisit lui-même les dosages : Luma ne suggère jamais de dose.
 
-Luma crée automatiquement un protocole par défaut nommé **Traitement principal** si aucun protocole n'existe.
+Les protocoles sont repliables : les protocoles actifs ou en pause sont ouverts par défaut, tandis que les protocoles terminés ou archivés sont fermés par défaut. Un protocole vide reste visible et propose des actions rapides pour ajouter un traitement simple ou un traitement à dosage variable. Luma crée automatiquement un protocole actif par défaut nommé **Traitement principal** si une création nécessite un protocole actif et qu'aucun n'existe ; un protocole archivé n'est jamais utilisé automatiquement comme cible de création.
 
 ---
 
@@ -247,7 +247,7 @@ Luma peut être déposée telle quelle dans un dépôt GitHub Pages.
 Points importants :
 
 - `manifest.json` utilise des chemins relatifs.
-- `sw.js` met en cache les fichiers essentiels.
+- `sw.js` met en cache les fichiers essentiels et recharge automatiquement une seule fois lors d'une mise à jour, sans reload parasite à la première installation.
 - Les icônes PWA sont disponibles dans `icons/`.
 - L'application est compatible avec un sous-dossier GitHub Pages.
 
@@ -268,7 +268,7 @@ Exemple d'arborescence attendue :
 ## Structure du projet
 
 ```txt
-Luma-3.4/
+Luma-V3.5.3/
 ├── index.html
 ├── manifest.json
 ├── sw.js
@@ -296,7 +296,7 @@ Luma-3.4/
 
 ## Modèle de données
 
-Luma V3.5.2 utilise la base locale :
+Luma V3.5.3 utilise la base locale :
 
 ```txt
 luma_db
@@ -305,7 +305,7 @@ luma_db
 Version IndexedDB :
 
 ```txt
-6
+8
 ```
 
 Stores principaux :
@@ -320,13 +320,14 @@ Stores principaux :
 | `dailyNotes` | Notes quotidiennes. |
 | `dailySymptoms` | Symptômes quotidiens. |
 | `protocolEvents` | Événements liés à un protocole. |
+| `dosageOverrides` | Dosages journaliers saisis pour les traitements à dosage variable. |
 
 ### Exemple d'export JSON
 
 ```json
 {
   "app": "Luma",
-  "version": "3.5.2",
+  "version": "3.5.3",
   "exportedAt": "2026-05-24T10:00:00.000Z",
   "protocols": [],
   "medications": [],
@@ -351,12 +352,12 @@ L'export JSON est la sauvegarde complète de l'application. Il contient toutes l
 Nom généré :
 
 ```txt
-luma-v3.5.2-backup-YYYY-MM-DD.json
+luma-v3.5.3-backup-YYYY-MM-DD.json
 ```
 
 ### Import JSON
 
-L'import accepte strictement le format V3.5.2 et refuse clairement les sauvegardes incompatibles.
+L'import accepte strictement le format V3.5.3 et refuse clairement les sauvegardes incompatibles.
 
 Avant un import valide, Luma télécharge automatiquement une sauvegarde de sécurité :
 
@@ -371,7 +372,8 @@ Le Journal peut être exporté en CSV compatible Excel français :
 - encodage UTF-8 avec BOM ;
 - séparateur `;` ;
 - filtres période/protocole respectés ;
-- prises, événements, notes et symptômes inclus.
+- prises, événements, notes et symptômes inclus ;
+- une journée avec uniquement des symptômes positifs génère une ligne CSV dédiée.
 
 ### Rapport imprimable
 
@@ -396,7 +398,7 @@ Le rapport inclut :
 - CSP front-end activée (`script-src 'self'`, sans inline script).
 - Import JSON limité à 5 Mo et plafonds de volume par collection.
 - `dailyNotes` globales par date (une seule note par jour).
-- Historique journal conservé après suppression de médicament (snapshots).
+- Historique journal conservé après suppression de médicament ou modification/suppression d'un dosage passé grâce aux snapshots.
 
 
 
@@ -454,7 +456,7 @@ Luma cherche à rester :
 
 <br>
 
-**Luma V3.5.2**
+**Luma V3.5.3**
 _Un carnet de bord personnel santé, rangé comme une trousse bleue et calme._
 
 </div>

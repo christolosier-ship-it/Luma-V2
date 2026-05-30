@@ -87,13 +87,9 @@ function clearStore(storeName){ return new Promise((resolve,reject)=>{ const r=t
 async function ensureDefaultProtocolAndLinks() {
   const [protocols, meds, phases] = await Promise.all([getAll(STORES.PROTOCOLS), getAll(STORES.MEDICATIONS), getAll(STORES.PHASES)]);
   const nowIso = new Date().toISOString();
-  let defaultProtocol = protocols.find((p) => p.isDefault) || protocols[0] || null;
+  let defaultProtocol = protocols.find((p) => p.isDefault && p.status === 'active') || protocols.find((p) => p.status === 'active') || null;
   const medsNeed = meds.some((m) => !m.protocolId || !m.dosageMode);
   const phasesNeed = phases.some((p) => !p.protocolId);
-  if (!defaultProtocol) {
-    defaultProtocol = { id: uid(), name: DEFAULT_PROTOCOL_NAME, type: 'free', startDate: todayStr(), status: 'active', notes: '', isDefault: true, createdAt: nowIso, updatedAt: nowIso };
-    await putItem(STORES.PROTOCOLS, defaultProtocol);
-  }
   if (medsNeed || phasesNeed) {
     if (!defaultProtocol) {
       const startDate = phases.map((p) => p.startDate).filter(Boolean).sort()[0] || todayStr();
@@ -110,6 +106,15 @@ const DB = {
   async getProtocols() { return getAll(STORES.PROTOCOLS); },
   async saveProtocol(p) { return putItem(STORES.PROTOCOLS, p); },
   async deleteProtocol(id){ return deleteItem(STORES.PROTOCOLS,id); },
+  async ensureActiveProtocol(){
+    let protocols = await getAll(STORES.PROTOCOLS);
+    let protocol = protocols.find((p) => p.status === 'active') || null;
+    if (protocol) return protocol;
+    const now = new Date().toISOString();
+    protocol = { id: uid(), name: DEFAULT_PROTOCOL_NAME, type: 'free', status: 'active', startDate: todayStr(), endDate: null, notes: '', isDefault: true, createdAt: now, updatedAt: now };
+    await putItem(STORES.PROTOCOLS, protocol);
+    return protocol;
+  },
   async getMedications() { return getAll(STORES.MEDICATIONS); },
   async getMedication(id) { return (await getAll(STORES.MEDICATIONS)).find(m => m.id === id) || null; },
   async saveMedication(med) { return putItem(STORES.MEDICATIONS, { ...med, dosageMode: med.dosageMode === 'variable' ? 'variable' : 'fixed' }); },
@@ -130,6 +135,7 @@ const DB = {
   async getIntakeEvents(){ return getAll(STORES.INTAKE_EVENTS); },
   async getDailyNotes(){ return getAll(STORES.DAILY_NOTES); },
   async saveDailyNote(n){ return putItem(STORES.DAILY_NOTES,n); },
+  async deleteDailyNote(id){ return deleteItem(STORES.DAILY_NOTES,id); },
   async getDailySymptoms(){ return getAll(STORES.DAILY_SYMPTOMS); },
   async saveDailySymptoms(s){ return putItem(STORES.DAILY_SYMPTOMS,s); },
   async deleteDailySymptoms(id){ return deleteItem(STORES.DAILY_SYMPTOMS,id); },
@@ -143,12 +149,12 @@ const DB = {
       getAll(STORES.PROTOCOLS),getAll(STORES.MEDICATIONS),getAll(STORES.PHASES),getAll(STORES.DOSAGE_OVERRIDES),getAll(STORES.INTAKE_ACTIONS),getAll(STORES.INTAKE_EVENTS),getAll(STORES.DAILY_NOTES),getAll(STORES.DAILY_SYMPTOMS),getAll(STORES.PROTOCOL_EVENTS)
     ]);
     const medications = medicationsRaw.map(m => ({ ...m, dosageMode: m.dosageMode === 'variable' ? 'variable' : 'fixed' }));
-    return { app:'Luma', version:'3.5.2', exportedAt:new Date().toISOString(), protocols, medications, phases, dosageOverrides, intakeActions, intakeEvents, dailyNotes, dailySymptoms, protocolEvents, settings:{} };
+    return { app:'Luma', version:'3.5.3', exportedAt:new Date().toISOString(), protocols, medications, phases, dosageOverrides, intakeActions, intakeEvents, dailyNotes, dailySymptoms, protocolEvents, settings:{} };
   },
   validateImportData(data){
     if (!data || typeof data !== 'object') return {ok:false,error:'Fichier JSON invalide'};
     const version = String(data.version || '');
-    if (data.app !== 'Luma' || version !== '3.5.2') return { ok:false, error:'Format d’import incompatible avec Luma V3.5.2.' };
+    if (data.app !== 'Luma' || version !== '3.5.3') return { ok:false, error:'Format d’import incompatible avec Luma V3.5.3.' };
     const required=['protocols','medications','phases','dosageOverrides','intakeActions','intakeEvents','dailyNotes','dailySymptoms','protocolEvents'];
     for (const k of required) if (!Array.isArray(data[k])) return {ok:false,error:`${k} doit être un tableau`};
     const meds = data.medications; const phases = data.phases; const dosageOverrides = data.dosageOverrides; const actions = data.intakeActions; const protocols = data.protocols;
