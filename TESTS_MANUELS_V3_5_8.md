@@ -1,15 +1,15 @@
-# Tests manuels — Luma V3.5.7 - Compactage mobile & homogénéisation UI
+# Tests manuels — Luma V3.5.8 - Compactage mobile & homogénéisation UI
 
 ## Préconditions
 
 - Tester sur navigateur desktop et mobile, idéalement iPhone Safari en mode PWA.
 - Effectuer un export JSON avant toute manipulation destructive.
-- Vérifier les exports/imports avec des fichiers de sauvegarde Luma V3.5.7.
+- Vérifier les exports/imports avec des fichiers de sauvegarde Luma V3.5.8.
 
-## Liste de vérification minimale V3.5.7
+## Liste de vérification minimale V3.5.8
 
 1. L’app se lance sans erreur console.
-2. La version affichée est V3.5.7.
+2. La version affichée est V3.5.8.
 3. Le bouton Terminer des événements dans Aujourd’hui a une largeur cohérente.
 4. Le bouton Snooze affiche +15mn.
 5. Dans Aujourd’hui, événement affiche titre et type sur une ligne si possible.
@@ -37,8 +37,8 @@
 27. Modifier un événement fonctionne toujours.
 28. Terminer / réouvrir un événement fonctionne depuis la modale.
 29. Supprimer un événement fonctionne avec confirmation.
-30. Export JSON V3.5.7 fonctionne.
-31. Import JSON V3.5.7 fonctionne.
+30. Export JSON V3.5.8 fonctionne.
+31. Import JSON V3.5.8 fonctionne.
 32. Export CSV fonctionne.
 33. Rapport imprimable fonctionne.
 34. Le texte alert(1) est affiché comme texte partout.

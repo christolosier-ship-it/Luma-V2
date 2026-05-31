@@ -17,14 +17,17 @@
   --primary-soft: #E7F2FF;
   --primary-border: #BBD9FF;
   --success: #167A45;
-  --success-soft: #E9F8EF;
-  --success-border: #BDE7CC;
+  --success-soft: #DCFCE7;
+  --success-border: #86EFAC;
   --warning: #D97706;
-  --warning-soft: #FFF4E5;
-  --warning-border: #F4C37D;
+  --warning-soft: #FFEDD5;
+  --warning-border: #FDBA74;
+  --snoozed: #A16207;
+  --snoozed-soft: #FEF9C3;
+  --snoozed-border: #FDE68A;
   --danger: #B42318;
-  --danger-soft: #FFF0EE;
-  --danger-border: #F6C7C2;
+  --danger-soft: #FEE2E2;
+  --danger-border: #FCA5A5;
   --muted-soft: #F1F5F9;
   --muted-border: #CBD5E1;
   --lavender:    #b0a8cc;
@@ -626,7 +629,9 @@ input, select, textarea { font-family: var(--font-body); }
   }
 }
 
-/* V3.5.7 — compactage mobile & homogénéisation UI */
+/* V3.5.8 — compactage mobile & homogénéisation UI */
+
+
 .protocol-card { margin: 12px 0; }
 .protocol-card > summary { list-style: none; cursor: pointer; }
 .protocol-card > summary::-webkit-details-marker { display: none; }
@@ -651,7 +656,7 @@ input, select, textarea { font-family: var(--font-body); }
 .dosage-week-help { margin-top: 4px; }
 @media (max-width: 520px) { .protocol-card-header { flex-direction: column; } .protocol-actions { justify-content: flex-start; } .missing-dosage-row, .dosage-bulk-row { align-items:stretch; flex-direction:column; } }
 
-/* V3.5.7 — menu d'ajout centralisé */
+/* V3.5.8 — menu d'ajout centralisé */
 .add-menu-section {
   display: grid;
   gap: 8px;
@@ -671,7 +676,7 @@ input, select, textarea { font-family: var(--font-body); }
   width: 100%;
 }
 
-/* V3.5.7 — calendrier de dosage allégé */
+/* V3.5.8 — calendrier de dosage allégé */
 .dosage-calendar-footer {
   display: grid;
   gap: 10px;
@@ -704,7 +709,7 @@ input, select, textarea { font-family: var(--font-body); }
   margin: 10px 0 0;
 }
 
-/* V3.5.7 — compactage mobile & homogénéisation UI */
+/* V3.5.8 — compactage mobile & homogénéisation UI */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -827,7 +832,7 @@ input, select, textarea { font-family: var(--font-body); }
   .timeline-actions { max-height: none; overflow: visible; }
 }
 
-/* V3.5.7 — compactage mobile & homogénéisation UI */
+/* V3.5.8 — compactage mobile & homogénéisation UI */
 .btn.btn-compact {
   flex: 0 0 auto;
   min-width: 0;
@@ -868,8 +873,8 @@ input, select, textarea { font-family: var(--font-body); }
 }
 .symptom-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px 12px;
   margin-top: 8px;
 }
 .symptom-field {
@@ -878,33 +883,75 @@ input, select, textarea { font-family: var(--font-body); }
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
-  font-size: .82rem;
+  font-size: .9rem;
   color: var(--text-soft);
+  line-height: 1.25;
 }
 .symptom-field span {
-  min-width: 0;
-  overflow-wrap: anywhere;
+  flex: 1 1 auto;
+  min-width: 88px;
+  overflow-wrap: normal;
 }
 .symptom-field select.form-input {
-  width: 96px;
+  flex: 0 0 132px;
+  width: 132px;
   max-width: 100%;
   padding: 8px 28px 8px 10px;
-  font-size: .84rem;
+  font-size: .9rem;
 }
 
 .timeline-item-content { min-width: 0; }
 .timeline-compact-line > span {
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .timeline-event-line {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
   width: 100%;
 }
 .timeline-event-line .icon-btn {
-  justify-self: end;
+  flex: 0 0 auto;
 }
+
+
+/* V3.5.8 — statuts visuels unifiés Aujourd’hui / Chronologie */
+.status-badge.is-pending { background: #fff; color: var(--text-soft); border-color: var(--muted-border); }
+.status-badge.is-snoozed { background: var(--snoozed-soft); color: var(--snoozed); border-color: var(--snoozed-border); }
+.status-badge.is-warning { background: var(--warning-soft); color: #9A3412; border-color: var(--warning-border); }
+.status-badge.is-danger { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-border); }
+.status-badge.is-success { background: var(--success-soft); color: var(--success); border-color: var(--success-border); }
+
+.intake-card.status-pending,
+.day-flow-card.status-pending,
+.timeline-item-card.status-pending { background: #fff; border-left-color: var(--muted-border); }
+.intake-card.status-taken,
+.day-flow-card.status-taken,
+.timeline-item-card.status-taken,
+.day-flow-card.status-completed,
+.timeline-item-card.status-completed { background: var(--success-soft); border-left-color: var(--success); opacity: 1; }
+.intake-card.status-missed,
+.day-flow-card.status-missed,
+.timeline-item-card.status-missed { background: var(--danger-soft); border-left-color: var(--danger); }
+.intake-card.status-late,
+.intake-card.status-takenLate,
+.day-flow-card.status-late,
+.day-flow-card.status-takenLate,
+.timeline-item-card.status-late,
+.timeline-item-card.status-takenLate { background: var(--warning-soft); border-left-color: var(--warning); }
+.intake-card.status-snoozed,
+.day-flow-card.status-snoozed,
+.timeline-item-card.status-snoozed { background: var(--snoozed-soft); border-left-color: var(--snoozed); }
+.intake-card.status-skipped,
+.day-flow-card.status-skipped,
+.timeline-item-card.status-skipped { background: var(--muted-soft); border-left-color: var(--text-light); opacity: .85; }
+.day-flow-card.is-done.status-taken,
+.day-flow-card.is-done.status-completed,
+.day-flow-card.is-done.status-takenLate,
+.day-flow-card.is-done.status-snoozed,
+.day-flow-card.is-done.status-missed { opacity: .9; }
 
 .protocol-card {
   padding: 10px 12px;
@@ -964,13 +1011,6 @@ input, select, textarea { font-family: var(--font-body); }
     min-width: 70px;
   }
   .timeline-event-line {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-  .timeline-event-line .status-badge {
-    grid-column: 1;
-  }
-  .timeline-event-line .icon-btn {
-    grid-column: 2;
-    grid-row: 1 / span 2;
+    display: flex;
   }
 }

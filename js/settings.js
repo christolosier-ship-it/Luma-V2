@@ -4,9 +4,9 @@ const SettingsScreen = {
     screen.innerHTML = `<div class="section-title">Réglages</div><div class="settings-section card">
       <div class="settings-row"><div><div class="settings-row-label">Exporter JSON</div></div><button class="btn-settings" id="btn-export">Exporter</button></div>
       <div class="settings-row"><div><div class="settings-row-label">Importer JSON</div></div><button class="btn-settings" id="btn-import">Importer</button></div>
-      <div class="settings-row-help">Format de sauvegarde local Luma.</div><input type="file" id="import-file-input" accept=".json" class="hidden" /></div><div class='card card-sm settings-info-card'><strong>Confidentialité locale</strong><p>Vos données sont stockées localement sur cet appareil. Luma ne nécessite aucun compte, aucun cloud et aucune synchronisation externe.</p><p>Pensez à exporter régulièrement un fichier JSON de sauvegarde.</p></div><div class='card card-sm settings-info-card'><strong>À propos</strong><p>Luma V3.5.7</p><p>Créé par Christopher Losier</p><p>Application personnelle de suivi local, offline-first.</p></div>`;
+      <div class="settings-row-help">Format de sauvegarde local Luma.</div><input type="file" id="import-file-input" accept=".json" class="hidden" /></div><div class='card card-sm settings-info-card'><strong>Confidentialité locale</strong><p>Vos données sont stockées localement sur cet appareil. Luma ne nécessite aucun compte, aucun cloud et aucune synchronisation externe.</p><p>Pensez à exporter régulièrement un fichier JSON de sauvegarde.</p></div><div class='card card-sm settings-info-card'><strong>À propos</strong><p>Luma V3.5.8</p><p>Créé par Christopher Losier</p><p>Application personnelle de suivi local, offline-first.</p></div>`;
     screen.querySelector('#btn-export').addEventListener('click', async () => {
-      try { const data = await DB.exportAll(); SettingsScreen._downloadJson(data, `luma-v3.5.7-backup-${todayStr()}.json`); showToast('✓ Export JSON réalisé'); }
+      try { const data = await DB.exportAll(); SettingsScreen._downloadJson(data, `luma-v3.5.8-backup-${todayStr()}.json`); showToast('✓ Export JSON réalisé'); }
       catch (err) { console.error(err); showToast('Erreur export JSON'); }
     });
     const importInput = screen.querySelector('#import-file-input');

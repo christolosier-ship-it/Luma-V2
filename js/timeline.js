@@ -113,20 +113,19 @@ const TimelineScreen = {
   },
 
   _intakeItemHtml(intake) {
-    const status = Intakes.getVisualStatus(intake, intake.dateStr || todayStr());
+    const statusInfo = Intakes.getVisualStatusInfo(intake, intake.dateStr || todayStr());
     const dosageText = intake.dosage ? ` - ${escHtml(intake.dosage)}` : '';
     const variableText = intake.dosageMode === 'variable' ? ' · Dosage variable' : '';
-    return `<div class="timeline-item"><div class="timeline-item-card status-${escHtml(status)}"><div class="timeline-item-icon">💊</div><div class="timeline-item-content"><div class="timeline-compact-line"><span>${escHtml(intake.displayTime || intake.time || 'Sans horaire')} · ${escHtml(intake.medName || '')}${dosageText}${variableText}</span>${this._statusBadge(status)}</div></div></div></div>`;
+    return `<div class="timeline-item"><div class="timeline-item-card ${escHtml(statusInfo.className)}"><div class="timeline-item-icon">💊</div><div class="timeline-item-content"><div class="timeline-compact-line"><span>${escHtml(intake.displayTime || intake.time || 'Sans horaire')} · ${escHtml(intake.medName || '')}${dosageText}${variableText}</span>${this._statusBadge(statusInfo.key)}</div></div></div></div>`;
   },
 
   _eventItemHtml(event) {
-    const statusClass = event.completed ? 'status-event status-completed' : 'status-event status-pending';
-    const badge = event.completed ? this._statusBadge('completed') : this._statusBadge('pending');
-    return `<div class="timeline-item"><div class="timeline-item-card ${statusClass}"><div class="timeline-item-icon">📅</div><div class="timeline-item-content"><div class="timeline-compact-line timeline-event-line"><span>${escHtml(event.time || 'Sans horaire')} · ${escHtml(event.title)} - ${escHtml(eventTypeLabelFR(event.type))}</span>${badge}<button class="btn icon-btn is-primary" data-ev-edit="${escHtml(event.id)}" title="Modifier l’événement" aria-label="Modifier l’événement">…</button></div></div></div></div>`;
+    const statusInfo = getEventVisualStatus(event, event.date || todayStr());
+    return `<div class="timeline-item"><div class="timeline-item-card status-event ${escHtml(statusInfo.className)}"><div class="timeline-item-icon">📅</div><div class="timeline-item-content"><div class="timeline-compact-line timeline-event-line"><span>${escHtml(event.time || 'Sans horaire')} · ${escHtml(event.title)} - ${escHtml(eventTypeLabelFR(event.type))}</span>${this._statusBadge(statusInfo.key)}<button class="btn icon-btn is-primary" data-ev-edit="${escHtml(event.id)}" title="Modifier l’événement" aria-label="Modifier l’événement">…</button></div></div></div></div>`;
   },
 
   _noteItemHtml(dateStr, note) {
-    return `<div class="timeline-item"><div class="timeline-item-card status-note"><div class="timeline-item-icon">📝</div><div><div class="timeline-item-title">Note libre <button class="btn btn-linkish btn-compact" data-note-edit="${escHtml(dateStr)}">Modifier</button></div><div class="timeline-item-detail">${escHtml(note.freeNote)}</div></div></div></div>`;
+    return `<div class="timeline-item"><div class="timeline-item-card status-note"><div class="timeline-item-icon">📝</div><div><div class="timeline-item-title">Note libre <button class="btn icon-btn is-primary" data-note-edit="${escHtml(dateStr)}" title="Modifier la note" aria-label="Modifier la note">…</button></div><div class="timeline-item-detail">${escHtml(note.freeNote)}</div></div></div></div>`;
   },
 
   _symptomsItemHtml(daySymptoms) {
@@ -134,8 +133,7 @@ const TimelineScreen = {
   },
 
   _statusBadge(status) {
-    const labels = { taken:'Pris', skipped:'Passé', snoozed:'Reporté', late:'En retard', pending:'À venir', completed:'Terminé', untimed:'Sans horaire' };
-    const classes = { taken:'is-success', completed:'is-success', skipped:'is-muted', snoozed:'is-primary', late:'is-warning', pending:'is-primary', untimed:'is-muted' };
-    return `<span class="status-badge ${classes[status] || 'is-muted'}">${labels[status] || status}</span>`;
+    const info = getVisualStatusDef(status);
+    return `<span class="status-badge ${escHtml(info.badgeClass)}">${escHtml(info.label)}</span>`;
   },
 };

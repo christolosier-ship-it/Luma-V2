@@ -99,18 +99,60 @@ function normalizeTimes(times) {
     .filter(isValidTimeHHMM);
   return [...new Set(clean)].sort();
 }
+const VISUAL_STATUS_DEFS = {
+  pending: { key: 'pending', label: 'À venir', className: 'status-pending', badgeClass: 'is-pending' },
+  taken: { key: 'taken', label: 'Pris', className: 'status-taken', badgeClass: 'is-success' },
+  completed: { key: 'completed', label: 'Terminé', className: 'status-completed', badgeClass: 'is-success' },
+  missed: { key: 'missed', label: 'Oublié', className: 'status-missed', badgeClass: 'is-danger' },
+  late: { key: 'late', label: '⚠️ Retard', className: 'status-late', badgeClass: 'is-warning' },
+  takenLate: { key: 'takenLate', label: 'Pris en retard', className: 'status-takenLate', badgeClass: 'is-warning' },
+  snoozed: { key: 'snoozed', label: 'Reporté', className: 'status-snoozed', badgeClass: 'is-snoozed' },
+  skipped: { key: 'skipped', label: 'Passé', className: 'status-skipped', badgeClass: 'is-muted' },
+  untimed: { key: 'untimed', label: 'Sans horaire', className: 'status-untimed', badgeClass: 'is-muted' },
+};
+
+function getVisualStatusDef(status) {
+  return VISUAL_STATUS_DEFS[status] || { key: String(status || 'unknown'), label: String(status || 'Inconnu'), className: `status-${String(status || 'unknown')}`, badgeClass: 'is-muted' };
+}
+
+function timeToMinutes(value) {
+  if (!isValidTimeHHMM(value)) return null;
+  return Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
+}
+
+function plannedDateTime(dateStr, timeStr) {
+  if (!dateStr || !isValidTimeHHMM(timeStr)) return null;
+  const [h, m] = timeStr.split(':').map(Number);
+  const d = fromDateStr(dateStr);
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+function wasTakenLate(takenAt, dateStr, timeStr) {
+  const planned = plannedDateTime(dateStr, timeStr);
+  if (!takenAt || !planned) return false;
+  const actual = new Date(takenAt);
+  if (Number.isNaN(actual.getTime())) return false;
+  return actual.getTime() > planned.getTime();
+}
+
+function getEventVisualStatus(event, dateStr = event?.date || todayStr()) {
+  if (event?.completed) return getVisualStatusDef('completed');
+  const currentDate = todayStr();
+  if (dateStr < currentDate) return getVisualStatusDef('missed');
+  if (dateStr === currentDate) {
+    const eventMinutes = timeToMinutes(event?.time || '');
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    if (eventMinutes !== null && eventMinutes < nowMinutes) return getVisualStatusDef('late');
+  }
+  return getVisualStatusDef('pending');
+}
+
 
 /** Traduit un statut technique en libellé lisible en français. */
 function statusLabelFR(status) {
-  const labels = {
-    taken: 'Pris',
-    skipped: 'Passé',
-    snoozed: 'Reporté',
-    pending: 'En attente',
-    late: 'En retard',
-    completed: 'Terminé',
-  };
-  return labels[status] || String(status || 'Inconnu');
+  return getVisualStatusDef(status).label;
 }
 
 function getDefaultSymptoms() {

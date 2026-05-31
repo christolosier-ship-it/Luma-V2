@@ -103,13 +103,28 @@ const Intakes = {
 };
 
 
+Intakes.getVisualStatusInfo = function(intake, dateStr = intake?.dateStr || todayStr()) {
+  if (intake.status === 'snoozed') return getVisualStatusDef('snoozed');
+  if (intake.status === 'skipped') return getVisualStatusDef('skipped');
+  if (intake.status === 'taken') {
+    const plannedTime = intake.time || intake.displayTime || '';
+    return getVisualStatusDef(wasTakenLate(intake.takenAt, dateStr, plannedTime) ? 'takenLate' : 'taken');
+  }
+  if (intake.status && intake.status !== 'pending') return getVisualStatusDef(intake.status);
+
+  const currentDate = todayStr();
+  if (dateStr < currentDate) return getVisualStatusDef('missed');
+  if (dateStr === currentDate) {
+    const minutes = timeToMinutes(intake.displayTime || intake.time || '');
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    if (minutes !== null && minutes < nowMinutes) return getVisualStatusDef('late');
+  }
+  return getVisualStatusDef('pending');
+};
+
 Intakes.getVisualStatus = function(intake, dateStr) {
-  if (intake.status !== 'pending') return intake.status;
-  if (dateStr !== todayStr()) return 'pending';
-  const now = new Date();
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const [h, m] = intake.displayTime.split(':').map(Number);
-  return (h * 60 + m) < nowMinutes ? 'late' : 'pending';
+  return Intakes.getVisualStatusInfo(intake, dateStr).key;
 };
 
 Intakes.sortForToday = function(intakes, dateStr) {
