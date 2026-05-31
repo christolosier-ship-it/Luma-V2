@@ -114,13 +114,15 @@ const TimelineScreen = {
 
   _intakeItemHtml(intake) {
     const status = Intakes.getVisualStatus(intake, intake.dateStr || todayStr());
-    return `<div class="timeline-item"><div class="timeline-item-card status-${escHtml(status)}"><div class="timeline-item-icon">💊</div><div><div class="timeline-item-title"><span>${escHtml(intake.displayTime || intake.time || 'Sans horaire')} · ${escHtml(intake.medName || '')}</span> ${this._statusBadge(status)}</div><div class="timeline-item-detail">${escHtml(intake.dosage || '')}${intake.dosageMode === 'variable' ? ' · Dosage variable' : ''}</div></div></div></div>`;
+    const dosageText = intake.dosage ? ` - ${escHtml(intake.dosage)}` : '';
+    const variableText = intake.dosageMode === 'variable' ? ' · Dosage variable' : '';
+    return `<div class="timeline-item"><div class="timeline-item-card status-${escHtml(status)}"><div class="timeline-item-icon">💊</div><div class="timeline-item-content"><div class="timeline-compact-line"><span>${escHtml(intake.displayTime || intake.time || 'Sans horaire')} · ${escHtml(intake.medName || '')}${dosageText}${variableText}</span>${this._statusBadge(status)}</div></div></div></div>`;
   },
 
   _eventItemHtml(event) {
     const statusClass = event.completed ? 'status-event status-completed' : 'status-event status-pending';
-    const badge = event.completed ? this._statusBadge('completed') : this._statusBadge(event.time ? 'pending' : 'untimed');
-    return `<div class="timeline-item"><div class="timeline-item-card ${statusClass}"><div class="timeline-item-icon">📅</div><div><div class="timeline-item-title"><span>${escHtml(event.time || 'Sans horaire')} · ${escHtml(event.title)}</span> ${badge}</div><div class="timeline-item-detail">${escHtml(eventTypeLabelFR(event.type))}</div><div class="timeline-actions"><button class="btn btn-primary btn-compact" data-ev-toggle="${escHtml(event.id)}">${event.completed ? 'Réouvrir' : 'Terminer'}</button><button class="btn btn-ghost btn-compact" data-ev-edit="${escHtml(event.id)}">Modifier</button><button class="btn btn-danger btn-compact" data-ev-del="${escHtml(event.id)}">Supprimer</button></div></div></div></div>`;
+    const badge = event.completed ? this._statusBadge('completed') : this._statusBadge('pending');
+    return `<div class="timeline-item"><div class="timeline-item-card ${statusClass}"><div class="timeline-item-icon">📅</div><div class="timeline-item-content"><div class="timeline-compact-line timeline-event-line"><span>${escHtml(event.time || 'Sans horaire')} · ${escHtml(event.title)} - ${escHtml(eventTypeLabelFR(event.type))}</span>${badge}<button class="btn icon-btn is-primary" data-ev-edit="${escHtml(event.id)}" title="Modifier l’événement" aria-label="Modifier l’événement">…</button></div></div></div></div>`;
   },
 
   _noteItemHtml(dateStr, note) {

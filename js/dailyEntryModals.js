@@ -53,14 +53,14 @@ const DailyEntryModals = {
       ['0', '0 - aucun'], ['1', '1 - léger'], ['2', '2 - modéré'], ['3', '3 - fort'],
     ];
     const rows = fields.map(([key, label]) => `
-      <label>${escHtml(label)}<select id="sym-${escHtml(key)}" class="form-input">
+      <label class="symptom-field"><span>${escHtml(label)}</span><select id="sym-${escHtml(key)}" class="form-input">
         ${options.map(([value, labelText]) => `<option value="${value}" ${Number(current.symptoms?.[key] || 0) === Number(value) ? 'selected' : ''}>${labelText}</option>`).join('')}
       </select></label>`).join('');
     const content = `
       <div class="modal-header"><span class="modal-title">Symptômes</span><button class="modal-close" id="modal-close-btn">✕</button></div>
       <div class="modal-body">
         <div class="form-group"><label class="form-label">Date</label><input id="sym-date" type="date" class="form-input" value="${escHtml(dateStr)}"/></div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">${rows}</div>
+        <div class="symptom-grid">${rows}</div>
         <input id="sym-other-label" class="form-input" style="margin-top:8px;" placeholder="Libellé autre symptôme" value="${escHtml(current.otherSymptomLabel || '')}"/>
       </div>
       <div class="modal-footer"><button class="btn-secondary" id="sym-cancel">Annuler</button><button class="btn-primary" id="sym-save">Enregistrer</button></div>`;

@@ -626,7 +626,7 @@ input, select, textarea { font-family: var(--font-body); }
   }
 }
 
-/* V3.5.6 — polish mobile & priorité du jour */
+/* V3.5.7 — compactage mobile & homogénéisation UI */
 .protocol-card { margin: 12px 0; }
 .protocol-card > summary { list-style: none; cursor: pointer; }
 .protocol-card > summary::-webkit-details-marker { display: none; }
@@ -651,7 +651,7 @@ input, select, textarea { font-family: var(--font-body); }
 .dosage-week-help { margin-top: 4px; }
 @media (max-width: 520px) { .protocol-card-header { flex-direction: column; } .protocol-actions { justify-content: flex-start; } .missing-dosage-row, .dosage-bulk-row { align-items:stretch; flex-direction:column; } }
 
-/* V3.5.6 — menu d'ajout centralisé */
+/* V3.5.7 — menu d'ajout centralisé */
 .add-menu-section {
   display: grid;
   gap: 8px;
@@ -671,7 +671,7 @@ input, select, textarea { font-family: var(--font-body); }
   width: 100%;
 }
 
-/* V3.5.6 — calendrier de dosage allégé */
+/* V3.5.7 — calendrier de dosage allégé */
 .dosage-calendar-footer {
   display: grid;
   gap: 10px;
@@ -704,7 +704,7 @@ input, select, textarea { font-family: var(--font-body); }
   margin: 10px 0 0;
 }
 
-/* V3.5.6 — polish mobile & priorité du jour */
+/* V3.5.7 — compactage mobile & homogénéisation UI */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -825,4 +825,152 @@ input, select, textarea { font-family: var(--font-body); }
 .timeline-actions .btn { flex: 0 1 auto; }
 @media (max-width: 520px) {
   .timeline-actions { max-height: none; overflow: visible; }
+}
+
+/* V3.5.7 — compactage mobile & homogénéisation UI */
+.btn.btn-compact {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.icon-btn {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .95rem;
+  line-height: 1;
+}
+.icon-btn.is-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.icon-btn.is-ghost { background: #fff; border-color: var(--muted-border); color: var(--primary); }
+.icon-btn.is-danger { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+
+.day-flow-compact-line,
+.timeline-compact-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text);
+}
+.day-flow-actions .btn-compact,
+.day-flow-actions .btn-action,
+.day-flow-actions .btn-primary {
+  min-width: 76px;
+}
+.day-flow-actions {
+  align-items: center;
+}
+.symptom-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.symptom-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  font-size: .82rem;
+  color: var(--text-soft);
+}
+.symptom-field span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.symptom-field select.form-input {
+  width: 96px;
+  max-width: 100%;
+  padding: 8px 28px 8px 10px;
+  font-size: .84rem;
+}
+
+.timeline-item-content { min-width: 0; }
+.timeline-compact-line > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.timeline-event-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  width: 100%;
+}
+.timeline-event-line .icon-btn {
+  justify-self: end;
+}
+
+.protocol-card {
+  padding: 10px 12px;
+}
+.protocol-card-header {
+  align-items: center;
+  margin-bottom: 6px;
+}
+.protocol-card-header h3 {
+  line-height: 1.2;
+}
+.protocol-card-meta {
+  line-height: 1.25;
+}
+.protocol-med-list {
+  padding-left: 8px;
+}
+.protocol-actions .btn-compact {
+  min-height: 30px;
+  padding: 5px 9px;
+}
+.med-card-header {
+  padding: 12px;
+  gap: 8px;
+}
+.med-info {
+  min-width: 0;
+}
+.med-type,
+.med-compact-summary,
+.variable-summary,
+.med-phase-detail {
+  line-height: 1.25;
+}
+.med-compact-summary {
+  margin: 0 12px 6px;
+  color: var(--text-soft);
+  font-size: .82rem;
+}
+.med-phases {
+  padding: 0 12px 10px;
+}
+.med-phase {
+  padding: 8px 0;
+}
+.med-actions-row {
+  flex-shrink: 0;
+}
+.journal-day .timeline-badge {
+  white-space: nowrap;
+}
+
+@media (max-width: 360px) {
+  .day-flow-actions .btn-compact,
+  .day-flow-actions .btn-action,
+  .day-flow-actions .btn-primary {
+    min-width: 70px;
+  }
+  .timeline-event-line {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .timeline-event-line .status-badge {
+    grid-column: 1;
+  }
+  .timeline-event-line .icon-btn {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
 }
