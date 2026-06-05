@@ -1,7 +1,7 @@
 <div align="center">
   <img src="icons/icone_512x512.png" alt="Icône Luma" width="128" height="128" />
 
-# Luma V3.5.8 - Compactage mobile & homogénéisation UI
+# Luma V3.5.9 - Correction manuelle des heures de prise
 
 ### Protocole & Journal
 
@@ -9,7 +9,7 @@
 
 <br>
 
-![Version](https://img.shields.io/badge/version-3.5.8-2494F2?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-3.5.9-2494F2?style=for-the-badge)
 ![PWA](https://img.shields.io/badge/PWA-offline--first-31C7C4?style=for-the-badge)
 ![Vanilla JS](https://img.shields.io/badge/Vanilla-JS-F7DF1E?style=for-the-badge&logo=javascript&logoColor=000)
 ![IndexedDB](https://img.shields.io/badge/Storage-IndexedDB-1266C3?style=for-the-badge)
@@ -91,7 +91,7 @@ Statuts possibles des prises :
 
 ### Timeline verticale
 
-La Timeline de Luma V3.5.8 est une vraie chronologie verticale HTML/CSS, conçue pour lire le protocole comme un parcours.
+La Timeline de Luma V3.5.9 est une vraie chronologie verticale HTML/CSS, conçue pour lire le protocole comme un parcours.
 
 Elle affiche :
 
@@ -104,7 +104,7 @@ Elle affiche :
 - les symptômes enregistrés ;
 - les repères J1, J2, J3 selon la date de début du protocole.
 
-La Timeline dispose aussi d'un filtre par protocole, d'un retour rapide à aujourd'hui avec highlight discret et de cartes compactes avec statuts visibles.
+La Timeline dispose aussi d'un filtre par protocole, d'un retour rapide à aujourd'hui avec highlight discret et de cartes compactes avec statuts visibles. Depuis une ligne de prise oubliée, passée, prise ou prise en retard, le bouton … permet de corriger l'heure réelle sans modifier l'heure prévue du protocole. Les corrections sont tracées dans l'historique et affichées avec la mention « corrigé manuellement ».
 
 ---
 
@@ -268,7 +268,7 @@ Exemple d'arborescence attendue :
 ## Structure du projet
 
 ```txt
-Luma-V3.5.8/
+Luma-V3.5.9/
 ├── index.html
 ├── manifest.json
 ├── sw.js
@@ -296,7 +296,7 @@ Luma-V3.5.8/
 
 ## Modèle de données
 
-Luma V3.5.8 utilise la base locale :
+Luma V3.5.9 utilise la base locale :
 
 ```txt
 luma_db
@@ -327,7 +327,7 @@ Stores principaux :
 ```json
 {
   "app": "Luma",
-  "version": "3.5.8",
+  "version": "3.5.9",
   "exportedAt": "2026-05-24T10:00:00.000Z",
   "protocols": [],
   "medications": [],
@@ -352,12 +352,12 @@ L'export JSON est la sauvegarde complète de l'application. Il contient toutes l
 Nom généré :
 
 ```txt
-luma-v3.5.8-backup-YYYY-MM-DD.json
+luma-v3.5.9-backup-YYYY-MM-DD.json
 ```
 
 ### Import JSON
 
-L'import accepte strictement le format V3.5.8 et refuse clairement les sauvegardes incompatibles.
+L'import accepte les sauvegardes Luma V3.5.8 et V3.5.9 pour une migration douce, puis les nouveaux exports sont générés au format V3.5.9. Les sauvegardes incompatibles restent refusées clairement.
 
 Avant un import valide, Luma télécharge automatiquement une sauvegarde de sécurité :
 
@@ -367,12 +367,12 @@ luma-pre-import-backup-YYYY-MM-DD-HHMM.json
 
 ### Export CSV
 
-Le Journal peut être exporté en CSV compatible Excel français. Les lignes d'une même journée suivent le déroulé chronologique : prises et événements horaires, événements sans horaire, puis notes et symptômes positifs.
+Le Journal peut être exporté en CSV compatible Excel français. Les lignes d'une même journée suivent le déroulé chronologique : prises et événements horaires, événements sans horaire, puis notes et symptômes positifs. Pour les prises, le CSV distingue l'heure prévue, l'heure réelle issue de `takenAt`, le retard en minutes et la mention éventuelle de correction manuelle.
 
 Nom généré :
 
 ```txt
-luma-journal-v3.5.8-YYYY-MM-DD.csv
+luma-journal-v3.5.9-YYYY-MM-DD.csv
 ```
 
 - encodage UTF-8 avec BOM ;
@@ -465,7 +465,7 @@ Luma cherche à rester :
 
 <br>
 
-**Luma V3.5.8**
+**Luma V3.5.9**
 _Un carnet de bord personnel santé, rangé comme une trousse bleue et calme._
 
 </div>

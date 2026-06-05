@@ -36,6 +36,7 @@ const TimelineScreen = {
     screen.querySelector('#timeline-hide-empty').onchange = async (e) => { this.hideEmptyDays = !!e.target.checked; localStorage.setItem(this._hideEmptyStorageKey, this.hideEmptyDays ? 'true' : 'false'); await this.render(); };
     screen.querySelectorAll('[data-note-edit]').forEach((b) => { b.onclick = () => this.openFreeNoteForm(b.dataset.noteEdit); });
     screen.querySelectorAll('[data-ev-edit]').forEach((b) => { b.onclick = () => this.openEventForm(protocolEvents.find((e) => e.id === b.dataset.evEdit), protocols); });
+    screen.querySelectorAll('[data-intake-correct]').forEach((b) => { b.onclick = () => this.openCorrectIntakeTimeForm(b.dataset.intakeCorrect); });
     screen.querySelectorAll('[data-ev-toggle]').forEach((b) => { b.onclick = async () => { await DB.toggleProtocolEventCompleted(b.dataset.evToggle); await this.render(); await TodayScreen.render(); await JournalScreen.render(); showToast('Événement mis à jour'); }; });
     screen.querySelectorAll('[data-ev-del]').forEach((b) => { b.onclick = async () => { if (!confirm('Supprimer cet événement ?')) return; await DB.deleteProtocolEvent(b.dataset.evDel); await this.render(); await TodayScreen.render(); await JournalScreen.render(); showToast('Événement supprimé'); }; });
   },
@@ -86,6 +87,93 @@ const TimelineScreen = {
     };
   },
 
+
+  async openCorrectIntakeTimeForm(intakeKey) {
+    try {
+      const parts = String(intakeKey || '').split('|');
+      const scheduledDate = parts[2] || this.selectedDate || todayStr();
+      const scheduledTime = parts[3] || '';
+      const [medications, phases, protocols, dosageOverrides, currentAction] = await Promise.all([
+        DB.getMedications(), DB.getPhases(), DB.getProtocols(), DB.getDosageOverrides(), DB.getIntakeAction(intakeKey),
+      ]);
+      const intake = Intakes.mergeWithActions(Intakes.generateForDate(medications, phases, scheduledDate, dosageOverrides), Intakes.buildActionsMap(currentAction ? [currentAction] : []))
+        .find((i) => i.key === intakeKey);
+      if (!intake) return showToast('Prise introuvable');
+      const med = medications.find((m) => m.id === intake.medId) || {};
+      const protocol = protocols.find((p) => p.id === intake.protocolId) || protocols.find((p) => p.id === med.protocolId) || {};
+      const currentTime = new Date().toTimeString().slice(0, 5);
+      const defaultTime = timeFromIso(currentAction?.takenAt)
+        || ((currentAction?.status === 'skipped' || ['missed', 'late'].includes(Intakes.getVisualStatusInfo(intake, scheduledDate).key)) && scheduledDate === todayStr() ? currentTime : scheduledTime)
+        || currentTime;
+      const content = `
+        <div class="modal-header"><span class="modal-title">Corriger l’heure de prise</span><button class="modal-close" id="modal-close-btn">✕</button></div>
+        <div class="modal-body">
+          <div class="timeline-correction-summary">
+            <div><strong>${escHtml(intake.medName || '')}</strong></div>
+            <div>${escHtml(intake.dosage || 'Dosage non renseigné')}${intake.dosageMode === 'variable' ? ' · Dosage variable' : ''}</div>
+            <div>Date prévue : ${escHtml(scheduledDate)}</div>
+            <div>Heure prévue : ${escHtml(scheduledTime || 'Sans horaire')}</div>
+          </div>
+          <div class="form-group"><label class="form-label">Heure réelle de prise *</label><input id="intake-actual-time" type="time" class="form-input" value="${escHtml(defaultTime)}" /></div>
+          <div class="form-group"><label class="form-label">Note de correction</label><textarea id="intake-correction-note" class="form-input" rows="3" maxlength="280">${escHtml(currentAction?.manualTimeEditNote || '')}</textarea></div>
+        </div>
+        <div class="modal-footer"><button class="btn-secondary" id="intake-cancel">Annuler</button><button class="btn-primary" id="intake-save">Enregistrer</button></div>`;
+      Modal.show(content);
+      document.getElementById('modal-close-btn').onclick = () => Modal.hide();
+      document.getElementById('intake-cancel').onclick = () => Modal.hide();
+      document.getElementById('intake-save').onclick = async () => {
+        const actualTime = document.getElementById('intake-actual-time').value.trim();
+        const note = document.getElementById('intake-correction-note').value.trim();
+        if (!isValidTimeHHMM(actualTime)) return showToast('Heure invalide (HH:MM)');
+        const takenAt = dateTimeFromDateAndTime(scheduledDate, actualTime);
+        if (!takenAt) return showToast('Heure invalide');
+        const nowIso = new Date().toISOString();
+        const delayMinutes = delayMinutesBetween(scheduledDate, scheduledTime, takenAt);
+        await DB.saveIntakeAction({
+          key: intakeKey,
+          status: 'taken',
+          takenAt,
+          updatedAt: nowIso,
+          manualTimeEdit: true,
+          manualTimeEditAt: nowIso,
+          manualTimeEditNote: note,
+        });
+        await DB.saveIntakeEvent({
+          id: uid(),
+          intakeKey,
+          medicationId: intake.medId || null,
+          protocolId: intake.protocolId || null,
+          type: 'edited',
+          createdAt: nowIso,
+          payload: {
+            scheduledDate,
+            scheduledTime,
+            actualDate: scheduledDate,
+            actualTime,
+            previousStatus: currentAction?.status || 'pending',
+            previousTakenAt: currentAction?.takenAt || null,
+            manualTimeEdit: true,
+            manualTimeEditNote: note,
+            delayMinutes,
+            medNameSnapshot: intake.medName || 'médicament supprimé',
+            dosageSnapshot: intake.dosage || '',
+            plannedDosage: intake.dosage || '',
+            dosageModeSnapshot: intake.dosageMode || 'fixed',
+            protocolNameSnapshot: protocol.name || '',
+          },
+        });
+        Modal.hide();
+        showToast('Heure de prise corrigée.');
+        await this.render();
+        if (scheduledDate === todayStr()) await TodayScreen.render();
+        await JournalScreen.render();
+      };
+    } catch (err) {
+      console.error(err);
+      showToast('Correction impossible');
+    }
+  },
+
   _dayHtml(dateStr, medications, phases, actionsMap, protocolEvents, notes, symptomsEntries, dosageOverrides) {
     const filteredMeds = this.selectedProtocolId === 'all' ? medications : medications.filter((m) => m.protocolId === this.selectedProtocolId);
     const filteredPhases = this.selectedProtocolId === 'all' ? phases : phases.filter((p) => p.protocolId === this.selectedProtocolId);
@@ -113,10 +201,19 @@ const TimelineScreen = {
   },
 
   _intakeItemHtml(intake) {
-    const statusInfo = Intakes.getVisualStatusInfo(intake, intake.dateStr || todayStr());
+    const dateStr = intake.dateStr || todayStr();
+    const statusInfo = Intakes.getVisualStatusInfo(intake, dateStr);
     const dosageText = intake.dosage ? ` - ${escHtml(intake.dosage)}` : '';
     const variableText = intake.dosageMode === 'variable' ? ' · Dosage variable' : '';
-    return `<div class="timeline-item"><div class="timeline-item-card ${escHtml(statusInfo.className)}"><div class="timeline-item-icon">💊</div><div class="timeline-item-content"><div class="timeline-compact-line"><span>${escHtml(intake.displayTime || intake.time || 'Sans horaire')} · ${escHtml(intake.medName || '')}${dosageText}${variableText}</span>${this._statusBadge(statusInfo.key)}</div></div></div></div>`;
+    const canCorrect = ['missed', 'takenLate', 'skipped', 'taken', 'late'].includes(statusInfo.key) || ['taken', 'skipped'].includes(intake.status);
+    const actualTime = timeFromIso(intake.takenAt);
+    const delay = delayMinutesBetween(dateStr, intake.time || '', intake.takenAt);
+    let detail = '';
+    if (intake.manualTimeEdit && actualTime) detail = `Pris à ${escHtml(actualTime)} · corrigé manuellement`;
+    if (statusInfo.key === 'takenLate' && actualTime) detail = `Prévu ${escHtml(intake.time || '')} · Pris ${escHtml(actualTime)} · +${Math.max(0, delay || 0)} min${intake.manualTimeEdit ? ' · corrigé manuellement' : ''}`;
+    const detailHtml = detail ? `<div class="timeline-item-detail timeline-correction-detail">${detail}</div>` : '';
+    const button = canCorrect ? `<button class="btn icon-btn is-primary" data-intake-correct="${escHtml(intake.key)}" title="Corriger l’heure de prise" aria-label="Corriger l’heure de prise">…</button>` : '';
+    return `<div class="timeline-item"><div class="timeline-item-card ${escHtml(statusInfo.className)}"><div class="timeline-item-icon">💊</div><div class="timeline-item-content"><div class="timeline-compact-line timeline-intake-line"><span>${escHtml(intake.displayTime || intake.time || 'Sans horaire')} · ${escHtml(intake.medName || '')}${dosageText}${variableText}</span>${this._statusBadge(statusInfo.key)}${button}</div>${detailHtml}</div></div></div>`;
   },
 
   _eventItemHtml(event) {

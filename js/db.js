@@ -149,12 +149,12 @@ const DB = {
       getAll(STORES.PROTOCOLS),getAll(STORES.MEDICATIONS),getAll(STORES.PHASES),getAll(STORES.DOSAGE_OVERRIDES),getAll(STORES.INTAKE_ACTIONS),getAll(STORES.INTAKE_EVENTS),getAll(STORES.DAILY_NOTES),getAll(STORES.DAILY_SYMPTOMS),getAll(STORES.PROTOCOL_EVENTS)
     ]);
     const medications = medicationsRaw.map(m => ({ ...m, dosageMode: m.dosageMode === 'variable' ? 'variable' : 'fixed' }));
-    return { app:'Luma', version:'3.5.8', exportedAt:new Date().toISOString(), protocols, medications, phases, dosageOverrides, intakeActions, intakeEvents, dailyNotes, dailySymptoms, protocolEvents, settings:{} };
+    return { app:'Luma', version:'3.5.9', exportedAt:new Date().toISOString(), protocols, medications, phases, dosageOverrides, intakeActions, intakeEvents, dailyNotes, dailySymptoms, protocolEvents, settings:{} };
   },
   validateImportData(data){
     if (!data || typeof data !== 'object') return {ok:false,error:'Fichier JSON invalide'};
     const version = String(data.version || '');
-    if (data.app !== 'Luma' || version !== '3.5.8') return { ok:false, error:'Format d’import incompatible avec Luma V3.5.8.' };
+    if (data.app !== 'Luma' || !['3.5.8','3.5.9'].includes(version)) return { ok:false, error:'Format d’import incompatible avec Luma V3.5.8/V3.5.9.' };
     const required=['protocols','medications','phases','dosageOverrides','intakeActions','intakeEvents','dailyNotes','dailySymptoms','protocolEvents'];
     for (const k of required) if (!Array.isArray(data[k])) return {ok:false,error:`${k} doit être un tableau`};
     const meds = data.medications; const phases = data.phases; const dosageOverrides = data.dosageOverrides; const actions = data.intakeActions; const protocols = data.protocols;
@@ -170,7 +170,14 @@ const DB = {
       if (!Array.isArray(p.times) || p.times.some(t=>!isValidTimeHHMM(t))) return {ok:false,error:'Heures de phase invalides'};
     }
     for (const pr of protocols){ if(!VALID_PROTOCOL_STATUS.has(pr.status||'active')) return {ok:false,error:'Statut protocole invalide'}; if(pr.startDate && !DATE_RE.test(pr.startDate)) return {ok:false,error:'Date protocole invalide'}; }
-    for (const a of actions){ if(!VALID_ACTION_STATUS.has(a.status)) return {ok:false,error:'Statut action invalide'}; if(a.date && !DATE_RE.test(a.date)) return {ok:false,error:'Date action invalide'}; if(a.time && !isValidTimeHHMM(a.time)) return {ok:false,error:'Heure action invalide'}; }
+    for (const a of actions){
+      if(!VALID_ACTION_STATUS.has(a.status)) return {ok:false,error:'Statut action invalide'};
+      if(a.date && !DATE_RE.test(a.date)) return {ok:false,error:'Date action invalide'};
+      if(a.time && !isValidTimeHHMM(a.time)) return {ok:false,error:'Heure action invalide'};
+      if('manualTimeEdit' in a && typeof a.manualTimeEdit !== 'boolean') return {ok:false,error:'manualTimeEdit invalide'};
+      if('manualTimeEditAt' in a && a.manualTimeEditAt != null && typeof a.manualTimeEditAt !== 'string') return {ok:false,error:'manualTimeEditAt invalide'};
+      if('manualTimeEditNote' in a && typeof a.manualTimeEditNote !== 'string') return {ok:false,error:'manualTimeEditNote invalide'};
+    }
     for (const m of meds) { if (!m.protocolId || !protocolIds.has(m.protocolId)) return {ok:false,error:'medication.protocolId invalide'}; }
     for (const p of phases) { if (!p.protocolId || !protocolIds.has(p.protocolId)) return {ok:false,error:'phase.protocolId invalide'}; }
     for (const o of dosageOverrides) {

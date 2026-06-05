@@ -120,6 +120,30 @@ function timeToMinutes(value) {
   return Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
 }
 
+
+function dateTimeFromDateAndTime(dateStr, timeStr) {
+  if (!dateStr || !isValidTimeHHMM(timeStr)) return null;
+  const [h, m] = timeStr.split(':').map(Number);
+  const d = fromDateStr(dateStr);
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
+}
+
+function timeFromIso(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toTimeString().slice(0, 5);
+}
+
+function delayMinutesBetween(dateStr, scheduledTime, actualIso) {
+  const planned = plannedDateTime(dateStr, scheduledTime);
+  if (!planned || !actualIso) return null;
+  const actual = new Date(actualIso);
+  if (Number.isNaN(actual.getTime())) return null;
+  return Math.round((actual.getTime() - planned.getTime()) / 60000);
+}
+
 function plannedDateTime(dateStr, timeStr) {
   if (!dateStr || !isValidTimeHHMM(timeStr)) return null;
   const [h, m] = timeStr.split(':').map(Number);

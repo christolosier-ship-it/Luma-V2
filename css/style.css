@@ -1014,3 +1014,36 @@ input, select, textarea { font-family: var(--font-body); }
     display: flex;
   }
 }
+
+/* V3.5.9 — correction manuelle de l’heure réelle depuis la Timeline */
+.timeline-intake-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+.timeline-intake-line .icon-btn {
+  flex: 0 0 auto;
+}
+.timeline-correction-detail {
+  margin-top: 4px;
+  color: var(--text-soft);
+  font-size: .78rem;
+  line-height: 1.35;
+}
+.timeline-correction-summary {
+  border: 1px solid var(--muted-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  color: var(--text-soft);
+  background: rgba(255,255,255,.72);
+  font-size: .9rem;
+}
+.timeline-correction-summary strong {
+  color: var(--text);
+}
+@media (max-width: 520px) {
+  .timeline-correction-detail { font-size: .76rem; }
+}

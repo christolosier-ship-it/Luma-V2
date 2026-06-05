@@ -75,6 +75,9 @@ const Intakes = {
         status: action ? action.status : 'pending',
         displayTime: action && action.status === 'snoozed' ? action.snoozedTime : ev.time,
         takenAt: action ? action.takenAt : null,
+        manualTimeEdit: action ? !!action.manualTimeEdit : false,
+        manualTimeEditAt: action ? action.manualTimeEditAt || null : null,
+        manualTimeEditNote: action ? action.manualTimeEditNote || '' : '',
       };
     });
   },
