@@ -1,7 +1,7 @@
 {
-  "name": "Luma V3.5.9 - Correction manuelle des heures de prise",
+  "name": "Luma V3.6.0 - Notifications locales améliorées",
   "short_name": "Luma",
-  "description": "Assistant personnel de protocole thérapeutique hors ligne",
+  "description": "Assistant personnel de protocole thérapeutique hors ligne avec notifications locales optionnelles",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

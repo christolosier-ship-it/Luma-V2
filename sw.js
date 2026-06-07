@@ -1,5 +1,5 @@
-const CACHE_NAME = 'luma-v3.5.9';
-const ASSETS = ['./','./index.html','./css/style.css','./js/db.js','./js/utils.js','./js/intakes.js','./js/today.js','./js/dailyEntryModals.js','./js/timeline.js','./js/journal.js','./js/medications.js','./js/settings.js','./js/modal.js','./js/app.js','./manifest.json','./icons/icone_192x192.png','./icons/icone_512x512.png'];
+const CACHE_NAME = 'luma-v3.6.0';
+const ASSETS = ['./','./index.html','./css/style.css','./js/db.js','./js/utils.js','./js/intakes.js','./js/today.js','./js/dailyEntryModals.js','./js/timeline.js','./js/journal.js','./js/medications.js','./js/settings.js','./js/modal.js','./js/notifications.js','./js/app.js','./manifest.json','./icons/icone_192x192.png','./icons/icone_512x512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then(async (cache) => {
@@ -51,6 +51,21 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone)).catch(() => {});
         return response;
       });
+    })
+  );
+});
+
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification?.data?.url || './index.html';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsArr) => {
+      for (const client of clientsArr) {
+        if ('focus' in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+      return undefined;
     })
   );
 });

@@ -11,6 +11,7 @@ const App = {
     App._bindNav();
     await TodayScreen.render();
     App.updateHeaderDate();
+    await window.LumaNotifications?.init?.();
   },
   // Lie les boutons de navigation du bas.
   _bindNav() { document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', async () => App.navigateTo(btn.dataset.screen))); },
@@ -57,8 +58,16 @@ if ('serviceWorker' in navigator) {
         });
       });
       await registration.update();
+      await window.LumaNotifications?.init?.();
     } catch (error) {
       console.error('Service worker registration/update failed', error);
     }
   });
 }
+
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) window.LumaNotifications?.scheduleAll?.();
+});
+window.addEventListener('focus', () => window.LumaNotifications?.scheduleAll?.());
+window.addEventListener('pageshow', () => window.LumaNotifications?.scheduleAll?.());

@@ -1,7 +1,7 @@
 <div align="center">
   <img src="icons/icone_512x512.png" alt="Icône Luma" width="128" height="128" />
 
-# Luma V3.5.9 - Correction manuelle des heures de prise
+# Luma V3.6.0 - Notifications locales améliorées
 
 ### Protocole & Journal
 
@@ -9,7 +9,7 @@
 
 <br>
 
-![Version](https://img.shields.io/badge/version-3.5.9-2494F2?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-3.6.0-2494F2?style=for-the-badge)
 ![PWA](https://img.shields.io/badge/PWA-offline--first-31C7C4?style=for-the-badge)
 ![Vanilla JS](https://img.shields.io/badge/Vanilla-JS-F7DF1E?style=for-the-badge&logo=javascript&logoColor=000)
 ![IndexedDB](https://img.shields.io/badge/Storage-IndexedDB-1266C3?style=for-the-badge)
@@ -57,6 +57,7 @@ Luma fonctionne **sans compte**, **sans cloud**, **sans serveur** et **sans publ
 | **Événements** | Rendez-vous, examens, pharmacie, prises de sang, étapes personnalisées. |
 | **Exports** | Sauvegarde JSON, export CSV compatible Excel et rapport imprimable. |
 | **PWA offline** | Application installable, utilisable après premier chargement même sans réseau. |
+| **Notifications locales** | Bascule optionnelle 100 % locale : prises à l’heure exacte et événements 15 minutes avant, sans Web Push ni serveur. |
 
 ---
 
@@ -91,7 +92,7 @@ Statuts possibles des prises :
 
 ### Timeline verticale
 
-La Timeline de Luma V3.5.9 est une vraie chronologie verticale HTML/CSS, conçue pour lire le protocole comme un parcours.
+La Timeline de Luma V3.6.0 est une vraie chronologie verticale HTML/CSS, conçue pour lire le protocole comme un parcours.
 
 Elle affiche :
 
@@ -107,6 +108,19 @@ Elle affiche :
 La Timeline dispose aussi d'un filtre par protocole, d'un retour rapide à aujourd'hui avec highlight discret et de cartes compactes avec statuts visibles. Depuis une ligne de prise oubliée, passée, prise ou prise en retard, le bouton … permet de corriger l'heure réelle sans modifier l'heure prévue du protocole. Les corrections sont tracées dans l'historique et affichées avec la mention « corrigé manuellement ».
 
 ---
+
+### Notifications locales
+
+Luma V3.6.0 ajoute des notifications locales optionnelles, configurables depuis **Réglages → Notifications locales**. Elles restent autoportantes : aucun compte, aucun backend, aucun Cloudflare Worker, aucun Web Push et aucune donnée ne sort de l’appareil.
+
+Quand elles sont activées après l’autorisation du navigateur :
+
+- les prises du jour encore en attente sont notifiées uniquement à l’heure exacte prévue ;
+- les événements de protocole du jour sont notifiés une seule fois 15 minutes avant leur heure ;
+- les notifications sont reprogrammées au lancement, au retour au premier plan et après modification des traitements, phases, dosages variables, événements ou import JSON ;
+- les doublons sont limités par un identifiant stable, un historique local léger et le tag système de notification.
+
+Limites assumées : ces notifications locales fonctionnent lorsque Luma est ouverte, active, ou récemment active selon les capacités du navigateur/PWA. Elles ne sont pas promises comme garanties si l’application est totalement fermée par le système. Luma n’envoie pas de rappel tardif : si l’horaire exact est manqué pendant l’inactivité, aucune notification de rattrapage n’est envoyée au réveil.
 
 ### Journal
 
@@ -268,7 +282,7 @@ Exemple d'arborescence attendue :
 ## Structure du projet
 
 ```txt
-Luma-V3.5.9/
+Luma-V3.6.0/
 ├── index.html
 ├── manifest.json
 ├── sw.js
@@ -288,6 +302,7 @@ Luma-V3.5.9/
     ├── journal.js
     ├── medications.js
     ├── settings.js
+    ├── notifications.js
     └── modal.js
 ```
 
@@ -296,7 +311,7 @@ Luma-V3.5.9/
 
 ## Modèle de données
 
-Luma V3.5.9 utilise la base locale :
+Luma V3.6.0 utilise la base locale :
 
 ```txt
 luma_db
@@ -327,7 +342,7 @@ Stores principaux :
 ```json
 {
   "app": "Luma",
-  "version": "3.5.9",
+  "version": "3.6.0",
   "exportedAt": "2026-05-24T10:00:00.000Z",
   "protocols": [],
   "medications": [],
@@ -352,12 +367,12 @@ L'export JSON est la sauvegarde complète de l'application. Il contient toutes l
 Nom généré :
 
 ```txt
-luma-v3.5.9-backup-YYYY-MM-DD.json
+luma-v3.6.0-backup-YYYY-MM-DD.json
 ```
 
 ### Import JSON
 
-L'import accepte les sauvegardes Luma V3.5.8 et V3.5.9 pour une migration douce, puis les nouveaux exports sont générés au format V3.5.9. Les sauvegardes incompatibles restent refusées clairement.
+L'import accepte les sauvegardes Luma V3.5.8, V3.5.9 et V3.6.0 pour une migration douce, puis les nouveaux exports sont générés au format V3.6.0. Les sauvegardes incompatibles restent refusées clairement.
 
 Avant un import valide, Luma télécharge automatiquement une sauvegarde de sécurité :
 
@@ -372,7 +387,7 @@ Le Journal peut être exporté en CSV compatible Excel français. Les lignes d'u
 Nom généré :
 
 ```txt
-luma-journal-v3.5.9-YYYY-MM-DD.csv
+luma-journal-v3.6.0-YYYY-MM-DD.csv
 ```
 
 - encodage UTF-8 avec BOM ;
@@ -465,7 +480,7 @@ Luma cherche à rester :
 
 <br>
 
-**Luma V3.5.9**
+**Luma V3.6.0**
 _Un carnet de bord personnel santé, rangé comme une trousse bleue et calme._
 
 </div>

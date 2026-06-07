@@ -265,6 +265,7 @@ const MedicationsScreen = {
 
       Modal.hide();
       showToast(isEdit ? '✓ Traitement mis à jour' : '✓ Traitement créé');
+      await window.LumaNotifications?.refreshAfterDataChange?.();
       await MedicationsScreen.render();
       // Also refresh today and Timeline
       await TodayScreen.render();
@@ -386,18 +387,18 @@ const MedicationsScreen = {
     Modal.show(c);
     document.getElementById('modal-close-btn').onclick=()=>Modal.hide();
     document.getElementById('p-cancel').onclick=()=>Modal.hide();
-    document.getElementById('p-save').onclick=async()=>{try{const name=document.getElementById('p-name').value.trim(); if(!name) return showToast('Nom obligatoire'); const startDate=document.getElementById('p-start').value; const endDate=document.getElementById('p-end').value||null; const data={...(protocol||{}),id:protocol?.id||uid(),name,startDate,endDate,status:protocol?.status||'active',updatedAt:new Date().toISOString(),createdAt:protocol?.createdAt||new Date().toISOString()}; await DB.saveProtocol(data); Modal.hide(); await MedicationsScreen.render(); showToast('Protocole enregistré');}catch(e){console.error(e);showToast('Erreur protocole');}};
+    document.getElementById('p-save').onclick=async()=>{try{const name=document.getElementById('p-name').value.trim(); if(!name) return showToast('Nom obligatoire'); const startDate=document.getElementById('p-start').value; const endDate=document.getElementById('p-end').value||null; const data={...(protocol||{}),id:protocol?.id||uid(),name,startDate,endDate,status:protocol?.status||'active',updatedAt:new Date().toISOString(),createdAt:protocol?.createdAt||new Date().toISOString()}; await DB.saveProtocol(data); await window.LumaNotifications?.refreshAfterDataChange?.(); Modal.hide(); await MedicationsScreen.render(); showToast('Protocole enregistré');}catch(e){console.error(e);showToast('Erreur protocole');}};
   },
   async handleProtocolAction(protocol, action){
     try{
       if(action==='edit') return MedicationsScreen.openProtocolForm(protocol);
-      if(action==='delete'){ if(!confirm('Supprimer définitivement ce protocole ?')) return; const [meds, events, overrides, phases] = await Promise.all([DB.getMedications(), DB.getProtocolEvents(), DB.getDosageOverrides(), DB.getPhases()]); const linked = meds.some(m=>m.protocolId===protocol.id) || events.some(e=>e.protocolId===protocol.id) || overrides.some(o=>o.protocolId===protocol.id) || phases.some(ph=>ph.protocolId===protocol.id); if(linked) return showToast('Ce protocole contient encore des traitements, événements ou dosages. Supprimez ou archivez ces éléments avant suppression définitive.'); await DB.deleteProtocol(protocol.id); showToast('Protocole supprimé'); return MedicationsScreen.render(); }
+      if(action==='delete'){ if(!confirm('Supprimer définitivement ce protocole ?')) return; const [meds, events, overrides, phases] = await Promise.all([DB.getMedications(), DB.getProtocolEvents(), DB.getDosageOverrides(), DB.getPhases()]); const linked = meds.some(m=>m.protocolId===protocol.id) || events.some(e=>e.protocolId===protocol.id) || overrides.some(o=>o.protocolId===protocol.id) || phases.some(ph=>ph.protocolId===protocol.id); if(linked) return showToast('Ce protocole contient encore des traitements, événements ou dosages. Supprimez ou archivez ces éléments avant suppression définitive.'); await DB.deleteProtocol(protocol.id); await window.LumaNotifications?.refreshAfterDataChange?.(); showToast('Protocole supprimé'); return MedicationsScreen.render(); }
       const next = {...protocol, updatedAt:new Date().toISOString()};
       if(action==='pause') next.status='paused';
       if(action==='resume') next.status='active';
       if(action==='complete') next.status='completed';
       if(action==='archive') { if(!confirm('Archiver ce protocole ?')) return; next.status='archived'; }
-      await DB.saveProtocol(next); showToast('Protocole mis à jour'); await MedicationsScreen.render(); await TodayScreen.render(); await TimelineScreen.render();
+      await DB.saveProtocol(next); await window.LumaNotifications?.refreshAfterDataChange?.(); showToast('Protocole mis à jour'); await MedicationsScreen.render(); await TodayScreen.render(); await TimelineScreen.render();
     }catch(err){console.error(err);showToast('Action protocole impossible');}
   },
   async _ensureDefaultProtocol() {
@@ -405,6 +406,7 @@ const MedicationsScreen = {
     const active = await DB.ensureActiveProtocol();
     const protocols = await DB.getProtocols();
     if (!before.some(p => p.status === 'active')) showToast('Protocole Traitement principal créé.');
+    await window.LumaNotifications?.refreshAfterDataChange?.();
     await MedicationsScreen.render();
     await TodayScreen.render();
     await TimelineScreen.render();
@@ -497,6 +499,7 @@ const MedicationsScreen = {
       await DB.savePhase({ ...formData.phase, medicationId: savedMed.id, protocolId, startDate, endDate, dosage: '', times, notes: document.getElementById('v-notes').value.trim() });
       Modal.hide();
       showToast(isEdit ? '✓ Traitement mis à jour' : '✓ Traitement créé');
+      await window.LumaNotifications?.refreshAfterDataChange?.();
       await MedicationsScreen.render(); await TodayScreen.render(); await TimelineScreen.render(); await JournalScreen.render();
       await MedicationsScreen.openDosageCalendar(savedMed, startDate);
     };
@@ -625,6 +628,7 @@ const MedicationsScreen = {
     await TodayScreen.render();
     await TimelineScreen.render();
     await JournalScreen.render();
+    await window.LumaNotifications?.refreshAfterDataChange?.();
     await MedicationsScreen.render();
   },
 
@@ -679,6 +683,7 @@ const MedicationsScreen = {
       }
       Modal.hide();
       showToast('Traitement supprimé');
+      await window.LumaNotifications?.refreshAfterDataChange?.();
       await MedicationsScreen.render();
       await TodayScreen.render();
     });

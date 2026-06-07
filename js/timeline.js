@@ -37,8 +37,8 @@ const TimelineScreen = {
     screen.querySelectorAll('[data-note-edit]').forEach((b) => { b.onclick = () => this.openFreeNoteForm(b.dataset.noteEdit); });
     screen.querySelectorAll('[data-ev-edit]').forEach((b) => { b.onclick = () => this.openEventForm(protocolEvents.find((e) => e.id === b.dataset.evEdit), protocols); });
     screen.querySelectorAll('[data-intake-correct]').forEach((b) => { b.onclick = () => this.openCorrectIntakeTimeForm(b.dataset.intakeCorrect); });
-    screen.querySelectorAll('[data-ev-toggle]').forEach((b) => { b.onclick = async () => { await DB.toggleProtocolEventCompleted(b.dataset.evToggle); await this.render(); await TodayScreen.render(); await JournalScreen.render(); showToast('Événement mis à jour'); }; });
-    screen.querySelectorAll('[data-ev-del]').forEach((b) => { b.onclick = async () => { if (!confirm('Supprimer cet événement ?')) return; await DB.deleteProtocolEvent(b.dataset.evDel); await this.render(); await TodayScreen.render(); await JournalScreen.render(); showToast('Événement supprimé'); }; });
+    screen.querySelectorAll('[data-ev-toggle]').forEach((b) => { b.onclick = async () => { await DB.toggleProtocolEventCompleted(b.dataset.evToggle); await window.LumaNotifications?.refreshAfterDataChange?.(); await this.render(); await TodayScreen.render(); await JournalScreen.render(); showToast('Événement mis à jour'); }; });
+    screen.querySelectorAll('[data-ev-del]').forEach((b) => { b.onclick = async () => { if (!confirm('Supprimer cet événement ?')) return; await DB.deleteProtocolEvent(b.dataset.evDel); await window.LumaNotifications?.refreshAfterDataChange?.(); await this.render(); await TodayScreen.render(); await JournalScreen.render(); showToast('Événement supprimé'); }; });
   },
 
   async openFreeNoteForm(dateStr = todayStr()) { return DailyEntryModals.openFreeNoteForm(dateStr); },
@@ -65,7 +65,7 @@ const TimelineScreen = {
     Modal.show(content);
     document.getElementById('modal-close-btn').onclick = () => Modal.hide();
     document.getElementById('ev-cancel').onclick = () => Modal.hide();
-    document.getElementById('ev-delete')?.addEventListener('click', async () => { if (!confirm('Supprimer cet événement ?')) return; await DB.deleteProtocolEvent(ev.id); Modal.hide(); showToast('Événement supprimé'); await this.render(); await TodayScreen.render(); await JournalScreen.render(); });
+    document.getElementById('ev-delete')?.addEventListener('click', async () => { if (!confirm('Supprimer cet événement ?')) return; await DB.deleteProtocolEvent(ev.id); await window.LumaNotifications?.refreshAfterDataChange?.(); Modal.hide(); showToast('Événement supprimé'); await this.render(); await TodayScreen.render(); await JournalScreen.render(); });
     document.getElementById('ev-save').onclick = async () => {
       const title = document.getElementById('ev-title').value.trim();
       const date = document.getElementById('ev-date').value;
@@ -79,6 +79,7 @@ const TimelineScreen = {
       if (!isValidProtocolEventType(type)) return showToast('Type invalide');
       const data = { id: ev?.id || uid(), protocolId: protocolId || null, title, date, time: time || '', type, notes: document.getElementById('ev-notes').value.trim(), completed: !!document.getElementById('ev-completed').checked, createdAt: ev?.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
       await DB.saveProtocolEvent(data);
+      await window.LumaNotifications?.refreshAfterDataChange?.();
       Modal.hide();
       showToast(ev ? 'Événement modifié' : 'Événement créé');
       await this.render();
@@ -164,6 +165,7 @@ const TimelineScreen = {
         });
         Modal.hide();
         showToast('Heure de prise corrigée.');
+        await window.LumaNotifications?.refreshAfterDataChange?.();
         await this.render();
         if (scheduledDate === todayStr()) await TodayScreen.render();
         await JournalScreen.render();
