@@ -31,9 +31,9 @@ const SettingsScreen = {
         </div>
       </div>
       <div class='card card-sm settings-info-card'><strong>Confidentialité locale</strong><p>Vos données sont stockées localement sur cet appareil. Luma ne nécessite aucun compte, aucun cloud et aucune synchronisation externe.</p><p>Pensez à exporter régulièrement un fichier JSON de sauvegarde.</p></div>
-      <div class='card card-sm settings-info-card'><strong>À propos</strong><p>Luma V3.6.0</p><p>Créé par Christopher Losier</p><p>Application personnelle de suivi local, offline-first.</p></div>`;
+      <div class='card card-sm settings-info-card'><strong>À propos</strong><p>Luma V3.6.1</p><p>Créé par Christopher Losier</p><p>Application personnelle de suivi local, offline-first.</p></div>`;
     screen.querySelector('#btn-export').addEventListener('click', async () => {
-      try { const data = await DB.exportAll(); SettingsScreen._downloadJson(data, `luma-v3.6.0-backup-${todayStr()}.json`); showToast('✓ Export JSON réalisé'); }
+      try { const data = await DB.exportAll(); SettingsScreen._downloadJson(data, `luma-v3.6.1-backup-${todayStr()}.json`); showToast('✓ Export JSON réalisé'); }
       catch (err) { console.error(err); showToast('Erreur export JSON'); }
     });
     const importInput = screen.querySelector('#import-file-input');

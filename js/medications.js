@@ -439,7 +439,7 @@ const MedicationsScreen = {
         <div class="add-menu-section">
           <div class="add-menu-title">Suivi</div>
           <button class="btn-primary add-menu-btn" id="add-note">📝 Ajouter une note libre</button>
-          <button class="btn-primary add-menu-btn" id="add-symptoms">🌡️ Ajouter des symptômes</button>
+          <button class="btn-primary add-menu-btn" id="add-symptoms">🌡️ Ajouter des ressentis</button>
           <button class="btn-primary add-menu-btn" id="add-event">📅 Ajouter un événement de protocole</button>
         </div>
         <div class="add-menu-section">

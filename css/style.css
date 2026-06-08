@@ -1048,7 +1048,7 @@ input, select, textarea { font-family: var(--font-body); }
   .timeline-correction-detail { font-size: .76rem; }
 }
 
-/* V3.6.0 — notifications locales optionnelles */
+/* V3.6.1 — notifications locales optionnelles */
 .settings-notification-row {
   align-items: center;
   gap: 12px;

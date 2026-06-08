@@ -228,7 +228,7 @@ const TimelineScreen = {
   },
 
   _symptomsItemHtml(daySymptoms) {
-    return `<div class="timeline-item"><div class="timeline-item-card status-note"><div class="timeline-item-icon">🌡️</div><div><div class="timeline-item-title">Symptômes</div><div class="timeline-item-detail">${escHtml(symptomsToText(daySymptoms, true))}</div></div></div></div>`;
+    return `<div class="timeline-item"><div class="timeline-item-card status-note"><div class="timeline-item-icon">🌡️</div><div><div class="timeline-item-title">Ressentis</div><div class="timeline-item-detail">${escHtml(symptomsToText(daySymptoms, true))}</div></div></div></div>`;
   },
 
   _statusBadge(status) {

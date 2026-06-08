@@ -14,8 +14,8 @@
 4. Le bouton Snooze affiche +15mn.
 5. Dans Aujourd’hui, événement affiche titre et type sur une ligne si possible.
 6. Dans Aujourd’hui, traitement affiche nom et dosage sur une ligne si possible.
-7. Les selects symptômes ne prennent plus toute la largeur.
-8. Plusieurs symptômes peuvent s’afficher sur une même ligne.
+7. Les selects ressentis ne prennent plus toute la largeur.
+8. Plusieurs ressentis peuvent s’afficher sur une même ligne.
 9. Dans Chronologie, les événements n’ont plus trois boutons visibles.
 10. Dans Chronologie, le bouton … ouvre la modale de l’événement.
 11. Dans Chronologie, un traitement tient sur une ou deux lignes.

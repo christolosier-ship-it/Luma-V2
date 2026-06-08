@@ -149,12 +149,12 @@ const DB = {
       getAll(STORES.PROTOCOLS),getAll(STORES.MEDICATIONS),getAll(STORES.PHASES),getAll(STORES.DOSAGE_OVERRIDES),getAll(STORES.INTAKE_ACTIONS),getAll(STORES.INTAKE_EVENTS),getAll(STORES.DAILY_NOTES),getAll(STORES.DAILY_SYMPTOMS),getAll(STORES.PROTOCOL_EVENTS)
     ]);
     const medications = medicationsRaw.map(m => ({ ...m, dosageMode: m.dosageMode === 'variable' ? 'variable' : 'fixed' }));
-    return { app:'Luma', version:'3.6.0', exportedAt:new Date().toISOString(), protocols, medications, phases, dosageOverrides, intakeActions, intakeEvents, dailyNotes, dailySymptoms, protocolEvents, settings:{} };
+    return { app:'Luma', version:'3.6.1', exportedAt:new Date().toISOString(), protocols, medications, phases, dosageOverrides, intakeActions, intakeEvents, dailyNotes, dailySymptoms, protocolEvents, settings:{} };
   },
   validateImportData(data){
     if (!data || typeof data !== 'object') return {ok:false,error:'Fichier JSON invalide'};
     const version = String(data.version || '');
-    if (data.app !== 'Luma' || !['3.5.8','3.5.9','3.6.0'].includes(version)) return { ok:false, error:'Format d’import incompatible avec Luma V3.5.8/V3.5.9/V3.6.0.' };
+    if (data.app !== 'Luma' || !['3.5.8','3.5.9','3.6.0','3.6.1'].includes(version)) return { ok:false, error:'Format d’import incompatible avec Luma V3.5.8/V3.5.9/V3.6.0/V3.6.1.' };
     const required=['protocols','medications','phases','dosageOverrides','intakeActions','intakeEvents','dailyNotes','dailySymptoms','protocolEvents'];
     for (const k of required) if (!Array.isArray(data[k])) return {ok:false,error:`${k} doit être un tableau`};
     const meds = data.medications; const phases = data.phases; const dosageOverrides = data.dosageOverrides; const actions = data.intakeActions; const protocols = data.protocols;
@@ -192,7 +192,7 @@ const DB = {
     for (const s of (data.dailySymptoms||[])) {
       if(!s.date||!DATE_RE.test(s.date)) return {ok:false,error:'dailySymptoms.date invalide'};
       if(typeof s.otherSymptomLabel!=='string') return {ok:false,error:'dailySymptoms.otherSymptomLabel invalide'};
-      for(const k of ['nausea','fatigue','pain','headache','dizziness','mood','sleep','bleeding','other']){const v=Number(s.symptoms?.[k]??0); if(![0,1,2,3].includes(v)) return {ok:false,error:'Symptôme hors plage 0-3'};}
+      for(const k of ['nausea','fatigue','pain','headache','dizziness','mood','sleep','bleeding','other']){const v=Number(s.symptoms?.[k]??0); if(![0,1,2,3].includes(v)) return {ok:false,error:'Ressenti hors plage 0-3'};}
     }
     for (const e of (data.intakeEvents||[])) { if(!e.type || !VALID_INTAKE_EVENT_TYPE.has(e.type)) return {ok:false,error:'Type intakeEvent invalide'}; }
     for (const ev of (data.protocolEvents || [])) { if (!ev.protocolId || !protocolIds.has(ev.protocolId)) return {ok:false,error:'Événement protocole invalide'}; if (!isValidProtocolEventType(ev.type)) return {ok:false,error:'Type événement protocole invalide'}; if (!DATE_RE.test(String(ev.date||''))) return {ok:false,error:'Date événement protocole invalide'}; if (ev.time && !isValidTimeHHMM(ev.time)) return {ok:false,error:'Heure événement protocole invalide'}; }

@@ -1,4 +1,4 @@
-# Tests manuels — Luma V3.6.0 - Notifications locales améliorées
+# Tests manuels — Luma V3.6.1 - Notifications locales améliorées
 
 ## Préconditions
 
@@ -6,9 +6,9 @@
 - Vérifier que Luma reste locale/offline-first : aucun compte, aucun backend, aucun Cloudflare Worker et aucun Web Push.
 - Se souvenir de la limite produit : les notifications locales fonctionnent lorsque Luma est ouverte, active ou récemment active selon le navigateur/PWA. Elles ne sont pas garanties si l’application est totalement fermée par le système.
 
-## Liste de vérification V3.6.0
+## Liste de vérification V3.6.1
 
-1. Installer/ouvrir Luma V3.6.0.
+1. Installer/ouvrir Luma V3.6.1.
 2. Aller dans Réglages.
 3. Vérifier présence de la carte Notifications locales.
 4. Activer la bascule.
@@ -37,12 +37,33 @@
 27. Tester sur mobile avec PWA ajoutée à l’écran d’accueil.
 28. Vérifier que la documentation ne promet pas une notification garantie si l’app est complètement fermée.
 
+## Anti-régression terminologie Ressentis V3.6.1
+
+1. Ouvrir l’écran Aujourd’hui.
+2. Vérifier que la section s’appelle **Ressentis du jour**.
+3. Vérifier que le bouton indique **Enregistrer les ressentis**.
+4. Enregistrer un ressenti.
+5. Vérifier que le toast de confirmation parle de ressentis.
+6. Ouvrir la Timeline.
+7. Vérifier que l’entrée parle de ressentis et non de l’ancienne terminologie.
+8. Ouvrir le Journal.
+9. Vérifier que les sections utilisent **Ressentis**.
+10. Générer un rapport imprimable.
+11. Vérifier que le rapport utilise **Ressentis déclarés**.
+12. Exporter un CSV.
+13. Vérifier que les colonnes visibles utilisent **Ressentis**.
+14. Exporter un JSON V3.6.1.
+15. Réimporter une sauvegarde V3.6.0.
+16. Vérifier que les anciens ressentis s’affichent maintenant avec la nouvelle terminologie.
+17. Vérifier que les notifications locales V3.6.0 fonctionnent toujours.
+18. Vérifier que l’import/export JSON n’a pas été cassé.
+
 ## Anti-régression import/export
 
-- Exporter un JSON V3.6.0 et vérifier que `version` vaut `3.6.0`.
-- Importer une sauvegarde V3.5.8, V3.5.9 puis V3.6.0.
+- Exporter un JSON V3.6.1 et vérifier que `version` vaut `3.6.1`.
+- Importer une sauvegarde V3.5.8, V3.5.9, V3.6.0 puis V3.6.1.
 - Vérifier que le réglage local des notifications n’est pas exporté dans les données médicales.
-- Exporter le Journal CSV et vérifier que le nom du fichier contient `luma-journal-v3.6.0`.
+- Exporter le Journal CSV et vérifier que le nom du fichier contient `luma-journal-v3.6.1`.
 
 ## Règles à confirmer
 

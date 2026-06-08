@@ -47,7 +47,7 @@ const DailyEntryModals = {
     const fields = [
       ['nausea', 'Nausée'], ['fatigue', 'Fatigue'], ['pain', 'Douleur'], ['headache', 'Maux de tête'],
       ['dizziness', 'Vertiges'], ['mood', 'Humeur'], ['sleep', 'Sommeil'], ['bleeding', 'Saignement'],
-      ['other', current.otherSymptomLabel || 'Autre symptôme'],
+      ['other', current.otherSymptomLabel || 'Autre ressenti'],
     ];
     const options = [
       ['0', '0 - aucun'], ['1', '1 - léger'], ['2', '2 - modéré'], ['3', '3 - fort'],
@@ -57,11 +57,11 @@ const DailyEntryModals = {
         ${options.map(([value, labelText]) => `<option value="${value}" ${Number(current.symptoms?.[key] || 0) === Number(value) ? 'selected' : ''}>${labelText}</option>`).join('')}
       </select></label>`).join('');
     const content = `
-      <div class="modal-header"><span class="modal-title">Symptômes</span><button class="modal-close" id="modal-close-btn">✕</button></div>
+      <div class="modal-header"><span class="modal-title">Ressentis</span><button class="modal-close" id="modal-close-btn">✕</button></div>
       <div class="modal-body">
         <div class="form-group"><label class="form-label">Date</label><input id="sym-date" type="date" class="form-input" value="${escHtml(dateStr)}"/></div>
         <div class="symptom-grid">${rows}</div>
-        <input id="sym-other-label" class="form-input" style="margin-top:8px;" placeholder="Libellé autre symptôme" value="${escHtml(current.otherSymptomLabel || '')}"/>
+        <input id="sym-other-label" class="form-input" style="margin-top:8px;" placeholder="Libellé autre ressenti" value="${escHtml(current.otherSymptomLabel || '')}"/>
       </div>
       <div class="modal-footer"><button class="btn-secondary" id="sym-cancel">Annuler</button><button class="btn-primary" id="sym-save">Enregistrer</button></div>`;
     Modal.show(content);
@@ -85,7 +85,7 @@ const DailyEntryModals = {
         await DB.saveDailySymptoms({ id: chosenDate, date: chosenDate, symptoms, otherSymptomLabel, updatedAt: new Date().toISOString(), createdAt: existing?.createdAt || new Date().toISOString() });
       }
       Modal.hide();
-      showToast('Symptômes enregistrés');
+      showToast('Ressentis enregistrés');
       await DailyEntryModals._refresh(chosenDate);
     };
   },
